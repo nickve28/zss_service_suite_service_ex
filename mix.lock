@@ -1,0 +1,4 @@
+%{"chumak": {:hex, :chumak, "1.2.0", "9821e0c6494a22bad8c9f958bf0a48f701ed9a36f2817066b44d05338530bd9d", [:rebar3], []},
+  "czmq": {:git, "https://github.com/gar1t/erlang-czmq.git", "530c976ee4d0892294ac0468e366ad65c70e6a50", []},
+  "msgpax": {:hex, :msgpax, "1.1.0", "e31625e256db2decca1ae2b841f21b4d2483b1332649ce3ebc96c7ff7a4986e3", [:mix], [{:plug, "~> 1.0", [hex: :plug, optional: true]}]},
+  "uuid": {:hex, :uuid, "1.1.7", "007afd58273bc0bc7f849c3bdc763e2f8124e83b957e515368c498b641f7ab69", [:mix], []}}
