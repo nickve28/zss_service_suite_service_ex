@@ -65,6 +65,7 @@ defmodule ZssService.Service do
     :ok = send_request(socket, register_msg)
 
     #Run in background and let the Task Supervisor handle supervision for us.
+    #Todo, create proper master supervisor outside of this process and link properly
     {:ok, supervisor} = Task.Supervisor.start_link()
     Task.Supervisor.start_child(supervisor, Heartbeat, :start, [socket, config])
     Task.Supervisor.start_child(supervisor, Receiver, :start, [socket, self])
@@ -72,14 +73,46 @@ defmodule ZssService.Service do
     {:reply, :ok, state}
   end
 
-  def handle_info(msg, state) do
+  def handle_info({:message, msg}, %{handlers: handlers, socket: socket} = state) do
     #Logger.debug("Received message #{Message.to_s(msg)}")
-    IO.inspect msg
+    handle_msg(msg, socket, handlers)
+
     {:noreply, state}
   end
 
+  defp handle_msg(%Message{address: %{"verb" => "HEARTBEAT"}}, _, _) do
+    :ok
+  end
+
+  defp handle_msg(%Message{address: %{"verb" => "UP"}}, _, _) do
+    :ok
+  end
+
+  #handle custom verbs
+  defp handle_msg(%Message{address: %{"verb" => verb}, type: "REQ"} = msg, socket, handlers) do
+    handler_fn = Map.get(handlers, verb)
+
+    #add not found support
+    %{headers: headers, payload: payload} = msg
+    {:ok, {result, %{status: status}}} = handler_fn.(payload, msg)
+    reply = %Message{msg |
+      payload: result,
+      status: status,
+      type: "REP"
+    }
+    send_request(socket, reply)
+  end
+
+  defp handle_msg(%Message{type: "REQ"}, _) do
+    {:error, :not_found}
+  end
+
+  defp handle_msg(_, _), do: :ok #match all in case, TODO: log
+
   defp send_request(socket, message) do
-    Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    #Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    IO.inspect message
+    IO.inspect message |> Message.to_frames
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)
   end
 

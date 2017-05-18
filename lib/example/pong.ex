@@ -13,7 +13,10 @@ end
 
 defmodule Examples.SampleHandler do
   def ping_me(payload, message) do
-    IO.inspect "YEAH #{payload}"
+    {:ok, {
+      %{ping: "PONG"},
+      %{status: "200"}
+     }}
   end
 end
 

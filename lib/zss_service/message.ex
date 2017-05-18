@@ -31,14 +31,18 @@ defmodule ZssService.Message do
       message.rid,
       pack!(message.address),
       pack!(message.headers),
-      pack!(message.status),
+      pack!(message.status), #nodejs client crashes on this because it apparently becomes null
       pack!(message.payload)
     ]
   end
 
-
   def parse([protocol, type, rid, encoded_address, encoded_headers, status, encoded_payload]) do
+    parse(["", protocol, type, rid, encoded_address, encoded_headers, status, encoded_payload])
+  end
+
+  def parse([identity, protocol, type, rid, encoded_address, encoded_headers, status, encoded_payload]) do
     %ZssService.Message{
+      identity: identity,
       protocol: protocol,
       type: type,
       rid: rid,
