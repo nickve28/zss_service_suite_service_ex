@@ -51,7 +51,7 @@ defmodule ZssService.Message do
       message.rid,
       pack!(Map.from_struct(message.address)),
       pack!(message.headers),
-      message.status, #nodejs client crashes on this because it apparently becomes null
+      message.status,
       pack!(message.payload)
     ]
   end
@@ -71,9 +71,5 @@ defmodule ZssService.Message do
       status: status,
       payload: unpack!(encoded_payload)
     }
-  end
-
-  def to_s(%ZssService.Message{type: type} = _msg) do
-    type
   end
 end
