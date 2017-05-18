@@ -15,7 +15,7 @@ defmodule Examples.SampleHandler do
   def ping_me(payload, message) do
     {:ok, {
       %{ping: "PONG"},
-      %{status: "200"}
+      Map.merge(message, %{status: "200"})
      }}
   end
 end
