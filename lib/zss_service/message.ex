@@ -8,7 +8,7 @@ defmodule ZssService.Message do
     rid: nil,
     address: %{},
     headers: nil,
-    status: nil,
+    status: "",
     payload: nil
   ]
 
@@ -31,7 +31,7 @@ defmodule ZssService.Message do
       message.rid,
       pack!(message.address),
       pack!(message.headers),
-      pack!(message.status), #nodejs client crashes on this because it apparently becomes null
+      message.status, #nodejs client crashes on this because it apparently becomes null
       pack!(message.payload)
     ]
   end

@@ -111,8 +111,6 @@ defmodule ZssService.Service do
 
   defp send_request(socket, message) do
     #Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
-    IO.inspect message
-    IO.inspect message |> Message.to_frames
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)
   end
 
