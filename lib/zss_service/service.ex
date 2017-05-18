@@ -31,7 +31,7 @@ defmodule ZssService.Service do
 
     #Initiate heartbeats
     config = Map.put(config, :identity, identity)
-    {:ok, %{config: config, socket: socket, poller: nil, handlers: %{}}}
+    {:ok, %{config: config, socket: socket, handlers: %{}}}
   end
 
   @doc """
@@ -120,8 +120,7 @@ defmodule ZssService.Service do
     "#{sid}##{UUID.uuid1()}"
   end
 
-  def terminate(_reason, %{socket: socket, poller: poller}) do
-    :czmq.unsubscribe(poller)
+  def terminate(_reason, %{socket: socket}) do
     :czmq.zsocket_destroy(socket)
     :normal
   end
