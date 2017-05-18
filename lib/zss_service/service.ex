@@ -74,22 +74,23 @@ defmodule ZssService.Service do
   end
 
   def handle_info({:message, msg}, %{handlers: handlers, socket: socket} = state) do
-    #Logger.debug("Received message #{Message.to_s(msg)}")
     handle_msg(msg, socket, handlers)
 
     {:noreply, state}
   end
 
-  defp handle_msg(%Message{address: %{"verb" => "HEARTBEAT"}}, _, _) do
+  defp handle_msg(%Message{address: %{verb: "HEARTBEAT"}}, _, _) do
     :ok
   end
 
-  defp handle_msg(%Message{address: %{"verb" => "UP"}}, _, _) do
+  defp handle_msg(%Message{address: %{verb: "UP"}}, _, _) do
     :ok
   end
 
   #handle custom verbs
-  defp handle_msg(%Message{address: %{"verb" => verb}, type: "REQ"} = msg, socket, handlers) do
+  defp handle_msg(%Message{address: %{verb: verb}, type: "REQ"} = msg, socket, handlers) do
+    Logger.info("Received message #{msg.identity} routed to #{msg.address.verb}")
+
     handler_fn = Map.get(handlers, verb)
 
     #add not found support
@@ -100,7 +101,7 @@ defmodule ZssService.Service do
       status: status,
       type: "REP"
     }
-    send_request(socket, reply)
+    send_reply(socket, reply)
   end
 
   defp handle_msg(%Message{type: "REQ"}, _) do
@@ -109,8 +110,13 @@ defmodule ZssService.Service do
 
   defp handle_msg(_, _), do: :ok #match all in case, TODO: log
 
+  defp send_reply(socket, message) do
+    Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
+    :czmq.zsocket_send_all(socket, message |> Message.to_frames)
+  end
+
   defp send_request(socket, message) do
-    #Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)
   end
 

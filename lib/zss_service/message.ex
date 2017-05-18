@@ -1,3 +1,23 @@
+defmodule ZssService.Address do
+  defstruct [
+    sid: nil,
+    sversion: nil,
+    verb: nil
+  ]
+
+  def new(%{"sid" => sid, "verb" => verb, "sversion" => sversion}) do
+    %ZssService.Address{
+      sid: sid, verb: verb, sversion: sversion
+    }
+  end
+
+  def new(%{sid: sid, verb: verb, sversion: sversion}) do
+    %ZssService.Address{
+      sid: sid, verb: verb, sversion: sversion
+    }
+  end
+end
+
 defmodule ZssService.Message do
   import Msgpax
 
@@ -6,7 +26,7 @@ defmodule ZssService.Message do
     protocol: "ZSS:0.0",
     type: "REQ",
     rid: nil,
-    address: %{},
+    address: %ZssService.Address{},
     headers: nil,
     status: "",
     payload: nil
@@ -14,11 +34,11 @@ defmodule ZssService.Message do
 
   def new(sid, verb, sversion \\ "*") do
     %ZssService.Message{
-      address: %{
+      address: ZssService.Address.new(%{
         sid: sid,
         sversion: sversion,
         verb: verb
-      },
+      }),
       rid: UUID.uuid1()
     }
   end
@@ -29,7 +49,7 @@ defmodule ZssService.Message do
       message.protocol,
       message.type,
       message.rid,
-      pack!(message.address),
+      pack!(Map.from_struct(message.address)),
       pack!(message.headers),
       message.status, #nodejs client crashes on this because it apparently becomes null
       pack!(message.payload)
@@ -46,7 +66,7 @@ defmodule ZssService.Message do
       protocol: protocol,
       type: type,
       rid: rid,
-      address: unpack!(encoded_address),
+      address: ZssService.Address.new(unpack!(encoded_address)),
       headers: unpack!(encoded_headers),
       status: status,
       payload: unpack!(encoded_payload)
