@@ -7,6 +7,15 @@ defmodule ZssService.Heartbeat do
   alias ZssService.Message
   require Logger
 
+  @doc """
+  Starts the heartbeat sender
+  This is not a Genserver, and is used in conjunction with Task.Supervisor
+
+  Args:
+
+  - socket: ZMQ Socket\n
+  - config: the config, containing sid, identity and heartbeat. Used to route the heartbeat message with the right identity and interval\n
+  """
   def start(socket, %{sid: sid, identity: identity, heartbeat: heartbeat} = config) do
     heartbeat_msg = Message.new "SMI", "HEARTBEAT"
 
@@ -18,6 +27,7 @@ defmodule ZssService.Heartbeat do
     start(socket, config)
   end
 
+  #TODO DRY
   defp send_request(socket, message) do
     Logger.debug "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)

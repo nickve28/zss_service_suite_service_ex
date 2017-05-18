@@ -1,8 +1,11 @@
 defmodule ZssService.ServiceSupervisor do
-  use Supervisor
+  import Supervisor.Spec
+  @moduledoc """
+  A supervisor intended to supervise the Service Workers.
+  """
 
   @doc """
-    Starts the supervisor
+  Starts the supervisor
   """
   def start_link do
     import Supervisor.Spec, warn: false
@@ -15,8 +18,10 @@ defmodule ZssService.ServiceSupervisor do
     Supervisor.start_link(children, opts)
   end
 
+  @doc """
+  Starts a ZSS Worker instance with the given config, supervised by the ServiceSupervisor
+  """
   def start_child(config) do
     Supervisor.start_child(__MODULE__, [config])
   end
-
 end

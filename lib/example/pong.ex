@@ -13,14 +13,14 @@ defmodule Example.Pong do
 end
 
 defmodule Examples.SampleHandler do
-  def ping_me(payload, message) do
+  def ping_me(_payload, message) do
     {:ok, {
       %{ping: "PONG"},
       Map.merge(message, %{status: "200"})
      }}
   end
 
-  def ping_me_more(payload, message) do
+  def ping_me_more(_payload, message) do
     {:ok, {
       [%{ping: "PONG"}, %{ping: "PANG"}],
       Map.merge(message, %{status: "200"})
