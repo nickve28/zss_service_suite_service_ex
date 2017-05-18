@@ -1,6 +1,7 @@
 defmodule ZssService.Service do
   use GenServer
-  alias ZssService.Message
+  alias ZssService.{Heartbeat, Message}
+  require Logger
 
   @moduledoc """
     The worker for ZSS
@@ -19,14 +20,18 @@ defmodule ZssService.Service do
 
   def init(%{sid: sid, broker: broker} = config) do
     {:ok, ctx} = :czmq.start_link
-    socket = :czmq.zsocket_new(ctx, :dealer)
 
-    #:ok = :czmq.zsocket_set_identity(socket, sid)
+    socket = :czmq.zsocket_new(ctx, :dealer)
+    :ok = :czmq.zsocket_set_identity(socket, sid |> String.to_charlist)
     :ok = :czmq.zsocket_connect(socket, broker)
+
+    #TODO THINK ABOUT THIS
+    #poller + contest + socket should be housed under a single supervisor PER set
+    {:ok, poller} = :czmq.subscribe_link(socket, [poll_interval: 100])
 
     #Initiate heartbeats
     config = Map.put(config, :identity, get_identity(sid))
-    {:ok, %{config: config, socket: socket, handlers: %{}}}
+    {:ok, %{config: config, socket: socket, poller: poller, handlers: %{}}}
   end
 
   @doc """
@@ -53,12 +58,17 @@ defmodule ZssService.Service do
     {:reply, :ok, %{state | handlers: handlers}}
   end
 
-  def handle_call(:run, _from, %{config: %{broker: broker, sid: sid, identity: identity}, socket: socket} = state) do
+  def handle_call(:run, _from, %{config: %{broker: broker, sid: sid, identity: identity} = config, socket: socket} = state) do
     register_msg = Message.new "SMI", "UP"
     register_msg = %Message{register_msg | payload: sid, identity: identity}
     :ok = send_request(socket, register_msg)
 
-    send(self, :heartbeat)
+    #send(self, :heartbeat) #Make async
+
+    #Run in background and let the Task Supervisor handle supervision for us.
+    {:ok, supervisor} = Task.Supervisor.start_link()
+    Task.Supervisor.start_child(supervisor, Heartbeat, :start, [socket, config])
+    #send(self, :listen) #Should be core of this process
 
     {:reply, :ok, state}
   end
@@ -73,11 +83,36 @@ defmodule ZssService.Service do
     {:noreply, state}
   end
 
+  def handle_info(:listen, %{socket: socket, poller: poller} = state) do
+    #_response = handle_zmq_response(socket, poller)
+    send(self, :listen)
+    {:noreply, state}
+  end
+
   defp send_request(socket, message) do
+    Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)
   end
 
   defp get_identity(sid) do
     "#{sid}##{UUID.uuid1()}"
+  end
+
+  defp handle_zmq_response(socket, poller) do
+    #Need to make the poll checker non blocking somehow
+    receive do
+      x -> IO.inspect(x)
+    end
+    #always :error for some reason...
+    #https://github.com/gar1t/erlang-czmq/blob/master/c_src/erl_czmq.c#L641
+    #frames = :czmq.zframe_recv_all(socket)
+    #Logger.debug("Received response from socket: #{frames}")
+    #frames
+  end
+
+  def terminate(_reason, %{socket: socket, poller: poller}) do
+    :czmq.unsubscribe(poller)
+    :czmq.zsocket_destroy(socket)
+    :normal
   end
 end
