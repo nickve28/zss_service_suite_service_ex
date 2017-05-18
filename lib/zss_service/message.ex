@@ -5,7 +5,7 @@ defmodule ZssService.Message do
     identity: nil,
     protocol: "ZSS:0.0",
     type: "REQ",
-    rid: UUID.uuid1(),
+    rid: nil,
     address: %{},
     headers: nil,
     status: nil,
@@ -18,13 +18,14 @@ defmodule ZssService.Message do
         sid: sid,
         sversion: sversion,
         verb: verb
-      }
+      },
+      rid: UUID.uuid1()
     }
   end
 
   def to_frames(message) do
     [
-      message.identity || "",
+      message.identity || '',
       message.protocol,
       message.type,
       message.rid,
@@ -33,5 +34,22 @@ defmodule ZssService.Message do
       pack!(message.status),
       pack!(message.payload)
     ]
+  end
+
+
+  def parse([protocol, type, rid, encoded_address, encoded_headers, status, encoded_payload]) do
+    %ZssService.Message{
+      protocol: protocol,
+      type: type,
+      rid: rid,
+      address: unpack!(encoded_address),
+      headers: unpack!(encoded_headers),
+      status: status,
+      payload: unpack!(encoded_payload)
+    }
+  end
+
+  def to_s(%ZssService.Message{type: type} = _msg) do
+    type
   end
 end

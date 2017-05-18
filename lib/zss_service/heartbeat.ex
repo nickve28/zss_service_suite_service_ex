@@ -19,7 +19,7 @@ defmodule ZssService.Heartbeat do
   end
 
   defp send_request(socket, message) do
-    Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    Logger.debug "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     :czmq.zsocket_send_all(socket, message |> Message.to_frames)
   end
 end

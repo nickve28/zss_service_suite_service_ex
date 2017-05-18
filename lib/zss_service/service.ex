@@ -1,10 +1,10 @@
 defmodule ZssService.Service do
   use GenServer
-  alias ZssService.{Heartbeat, Message}
+  alias ZssService.{Heartbeat, Message, Receiver}
   require Logger
 
   @moduledoc """
-    The worker for ZSS
+  The worker for ZSS
   """
 
   @defaults %{
@@ -12,7 +12,7 @@ defmodule ZssService.Service do
     heartbeat: 1000
   }
 
-  def start_link(%{sid: _} = config) do
+  def start_link(%{sid: sid} = config) when is_binary(sid) do
     full_config = Map.merge(@defaults, config)
 
     GenServer.start_link(__MODULE__, full_config)
@@ -21,28 +21,29 @@ defmodule ZssService.Service do
   def init(%{sid: sid, broker: broker} = config) do
     {:ok, ctx} = :czmq.start_link
 
+    :czmq.zctx_set_linger(ctx, 0)
     socket = :czmq.zsocket_new(ctx, :dealer)
-    :ok = :czmq.zsocket_set_identity(socket, sid |> String.to_charlist)
+    #remove any message after closing
+    identity = get_identity(sid) |> String.to_charlist
+    Logger.debug("Assuming identity #{identity}")
+    :ok = :czmq.zsocket_set_identity(socket, identity)
     :ok = :czmq.zsocket_connect(socket, broker)
 
-    #TODO THINK ABOUT THIS
-    #poller + contest + socket should be housed under a single supervisor PER set
-    {:ok, poller} = :czmq.subscribe_link(socket, [poll_interval: 100])
-
     #Initiate heartbeats
-    config = Map.put(config, :identity, get_identity(sid))
-    {:ok, %{config: config, socket: socket, poller: poller, handlers: %{}}}
+    config = Map.put(config, :identity, identity)
+    {:ok, %{config: config, socket: socket, poller: nil, handlers: %{}}}
   end
 
   @doc """
-    Register a verb to this worker. It will respond to the given verb and pass the payload and message
+  Register a verb to this worker. It will respond to the given verb and pass the payload and message
   """
   def add_verb(pid, {verb, module, fun}) do
+    Logger.debug("Register verb #{verb} targetted to module #{module}")
     GenServer.call(pid, {:add_verb, {verb, module, fun}})
   end
 
   @doc """
-    Starts the worker. Causes heartbeats to be run and registers itself to the broker
+  Starts the worker. Causes heartbeats to be run and registers itself to the broker
   """
   def run(pid) do
     GenServer.call(pid, :run)
@@ -63,29 +64,17 @@ defmodule ZssService.Service do
     register_msg = %Message{register_msg | payload: sid, identity: identity}
     :ok = send_request(socket, register_msg)
 
-    #send(self, :heartbeat) #Make async
-
     #Run in background and let the Task Supervisor handle supervision for us.
     {:ok, supervisor} = Task.Supervisor.start_link()
     Task.Supervisor.start_child(supervisor, Heartbeat, :start, [socket, config])
-    #send(self, :listen) #Should be core of this process
+    Task.Supervisor.start_child(supervisor, Receiver, :start, [socket, self])
 
     {:reply, :ok, state}
   end
 
-  def handle_info(:heartbeat, %{socket: socket, config: %{heartbeat: heartbeat, sid: sid, identity: identity}} = state) do
-    heartbeat_msg = Message.new "SMI", "HEARTBEAT"
-
-    heartbeat_msg = %Message{heartbeat_msg | identity: identity, payload: sid}
-    :ok = send_request(socket, heartbeat_msg)
-
-    Process.send_after(self, :heartbeat, heartbeat)
-    {:noreply, state}
-  end
-
-  def handle_info(:listen, %{socket: socket, poller: poller} = state) do
-    #_response = handle_zmq_response(socket, poller)
-    send(self, :listen)
+  def handle_info(msg, state) do
+    #Logger.debug("Received message #{Message.to_s(msg)}")
+    IO.inspect msg
     {:noreply, state}
   end
 
@@ -96,18 +85,6 @@ defmodule ZssService.Service do
 
   defp get_identity(sid) do
     "#{sid}##{UUID.uuid1()}"
-  end
-
-  defp handle_zmq_response(socket, poller) do
-    #Need to make the poll checker non blocking somehow
-    receive do
-      x -> IO.inspect(x)
-    end
-    #always :error for some reason...
-    #https://github.com/gar1t/erlang-czmq/blob/master/c_src/erl_czmq.c#L641
-    #frames = :czmq.zframe_recv_all(socket)
-    #Logger.debug("Received response from socket: #{frames}")
-    #frames
   end
 
   def terminate(_reason, %{socket: socket, poller: poller}) do
