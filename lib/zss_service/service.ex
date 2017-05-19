@@ -52,6 +52,8 @@ defmodule ZssService.Service do
   end
 
   def init({%{sid: sid} = config, sup}) do
+    sid = sid |> String.upcase
+
     identity = get_identity(sid) |> String.to_charlist
     config = Map.put(config, :identity, identity)
 
@@ -61,7 +63,7 @@ defmodule ZssService.Service do
     #Read about polling and erlang C ports as why I did this
     poller = @socket_adapter.link_to_poller(socket)
 
-    state = %State{config: StateConfig.new(config), socket: socket, poller: poller, supervisor: sup}
+    state = %State{config: StateConfig.new(%{config | sid: sid}), socket: socket, poller: poller, supervisor: sup}
 
     #remove any message after closing
     Logger.debug("Assuming identity #{identity}")
