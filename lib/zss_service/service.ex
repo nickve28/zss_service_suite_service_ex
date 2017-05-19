@@ -8,6 +8,7 @@ defmodule ZssService.Service do
   require Logger
 
   @not_found "404"
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
 
   defmodule StateConfig do
     @moduledoc """
@@ -51,23 +52,20 @@ defmodule ZssService.Service do
   end
 
   def init({%{sid: sid} = config, sup}) do
-    {:ok, ctx} = :czmq.start_link
-
     identity = get_identity(sid) |> String.to_charlist
     config = Map.put(config, :identity, identity)
 
-    :czmq.zctx_set_linger(ctx, 0)
-    socket = :czmq.zsocket_new(ctx, :dealer)
+    opts = %{type: :dealer, linger: 0}
+    socket = @socket_adapter.new_socket(opts)
 
-    #Read about polling and erlang C ports
-    poller = :czmq.subscribe_link(socket, [poll_interval: 50])
+    #Read about polling and erlang C ports as why I did this
+    poller = @socket_adapter.link_to_poller(socket)
 
     state = %State{config: StateConfig.new(config), socket: socket, poller: poller, supervisor: sup}
 
     #remove any message after closing
     Logger.debug("Assuming identity #{identity}")
-    :ok = :czmq.zsocket_set_identity(socket, identity)
-    :ok = :czmq.zsocket_connect(socket, state.config.broker)
+    @socket_adapter.connect(socket, identity, state.config.broker)
 
     #Initiate heartbeats
     {:ok, state}
@@ -161,13 +159,13 @@ defmodule ZssService.Service do
 
   defp send_reply(socket, message) do
     Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
-    :czmq.zsocket_send_all(socket, message |> Message.to_frames)
+    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 
   #TODO DRY
   defp send_request(socket, message) do
     Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
-    :czmq.zsocket_send_all(socket, message |> Message.to_frames)
+    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 
   @doc """
@@ -182,8 +180,8 @@ defmodule ZssService.Service do
   """
   def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
     Supervisor.stop(supervisor)
-    :czmq.unsubscribe(poller)
-    :czmq.zsocket_destroy(socket)
+    @socket_adapter.cleanup(socket, poller)
+
     :normal
   end
 end
