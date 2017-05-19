@@ -1,4 +1,5 @@
 defmodule ZssService.Adapters.Socket do
+  import ZssService.Adapters.Sender
   @moduledoc """
   Provides a readable interface that hides away the functions used by the czmq library.
 
@@ -49,5 +50,6 @@ defmodule ZssService.Adapters.Socket do
   def cleanup(socket, poller) do
     :czmq.unsubscribe(poller)
     :czmq.zsocket_destroy(socket)
+    :ok
   end
 end

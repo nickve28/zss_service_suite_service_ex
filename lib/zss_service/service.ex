@@ -179,8 +179,8 @@ defmodule ZssService.Service do
   Cleans up open resources
   """
   def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
-    Supervisor.stop(supervisor)
     @socket_adapter.cleanup(socket, poller)
+    Supervisor.stop(supervisor)
 
     :normal
   end
