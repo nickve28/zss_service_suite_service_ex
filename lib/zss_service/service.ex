@@ -1,17 +1,43 @@
 defmodule ZssService.Service do
-  use GenServer
-  alias ZssService.{Heartbeat, Message, Receiver}
-  require Logger
-
   @moduledoc """
   The worker for ZSS. Started via ServiceSupervisor.
   """
 
-  @defaults %{
-    broker: "tcp://127.0.0.1:7776",
-    heartbeat: 1000
-  }
+  use GenServer
+  alias ZssService.{Heartbeat, Message, Receiver}
+  require Logger
+
   @not_found "404"
+
+  defmodule StateConfig do
+    @moduledoc """
+    Struct for the configuration stored in the state, with appropriate defaults
+    """
+    defstruct [
+      broker: "tcp://127.0.0.1:7776",
+      heartbeat: 1000,
+      sid: nil,
+      identity: nil
+    ]
+
+    def new(config) do
+      Map.merge(%StateConfig{}, config)
+    end
+  end
+
+  defmodule State do
+    @moduledoc """
+    Struct to provide easy navigation through the Service's state, with appropriate defaults
+    """
+
+    defstruct [
+      config: %StateConfig{},
+      socket: nil,
+      handlers: %{},
+      poller: nil,
+      supervisor: nil
+    ]
+  end
 
   @doc """
   Starts an instance with the given config. Defaults will be applied.
@@ -21,31 +47,32 @@ defmodule ZssService.Service do
   - config: A map containg sid (required), broker, and heartbeat\n
   """
   def start_link(%{sid: sid} = config) when is_binary(sid) do
-    full_config = Map.merge(@defaults, config)
-
-    GenServer.start_link(__MODULE__, full_config)
+    GenServer.start_link(__MODULE__, config)
   end
 
-  def init(%{sid: sid, broker: broker} = config) do
+  def init(%{sid: sid} = config) do
     {:ok, ctx} = :czmq.start_link
+
+    identity = get_identity(sid) |> String.to_charlist
+    config = Map.put(config, :identity, identity)
 
     :czmq.zctx_set_linger(ctx, 0)
     socket = :czmq.zsocket_new(ctx, :dealer)
+    state = %State{config: StateConfig.new(config), socket: socket}
+
     #remove any message after closing
-    identity = get_identity(sid) |> String.to_charlist
     Logger.debug("Assuming identity #{identity}")
     :ok = :czmq.zsocket_set_identity(socket, identity)
-    :ok = :czmq.zsocket_connect(socket, broker)
+    :ok = :czmq.zsocket_connect(socket, state.config.broker)
 
     #Initiate heartbeats
-    config = Map.put(config, :identity, identity)
-    {:ok, %{config: config, socket: socket, handlers: %{}}}
+    {:ok, state}
   end
 
   @doc """
   Register a verb to this worker. It will respond to the given verb and pass the payload and message
   """
-  def add_verb(pid, {verb, module, fun}) do
+  def add_verb(pid, {verb, module, fun}) when is_atom(fun) and is_binary(verb) do
     Logger.debug("Register verb #{verb} targetted to module #{module}")
     GenServer.call(pid, {:add_verb, {verb, module, fun}})
   end

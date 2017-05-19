@@ -31,7 +31,7 @@ To run the example, ensure you retrieved the neccesary dependencies.
 
 ```mix deps.get```
 
-Afterwards, run the provided example shell script.
+Afterwards, run the provided example escript by doing.
 
-```./examples/pong.sh```
+```mix run ./examples/pong.exs```
 
