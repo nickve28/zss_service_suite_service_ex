@@ -9,6 +9,12 @@ defmodule Example.Pong do
     ZssService.Service.add_verb(pid, {"list", Examples.SampleHandler, :ping_me_more})
 
     ZssService.Service.run pid
+
+    loop
+  end
+
+  def loop() do #Keep the script running
+    loop()
   end
 end
 
@@ -28,3 +34,5 @@ defmodule Examples.SampleHandler do
   end
 end
 
+
+Example.Pong.start
