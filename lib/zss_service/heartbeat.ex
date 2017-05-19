@@ -4,6 +4,8 @@ defmodule ZssService.Heartbeat do
   The actual socket, it's extracted to a several module that will be supervised
   """
 
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
+
   alias ZssService.Message
   require Logger
 
@@ -30,6 +32,6 @@ defmodule ZssService.Heartbeat do
   #TODO DRY
   defp send_request(socket, message) do
     Logger.debug "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
-    :czmq.zsocket_send_all(socket, message |> Message.to_frames)
+    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 end
