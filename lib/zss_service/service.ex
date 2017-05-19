@@ -4,7 +4,7 @@ defmodule ZssService.Service do
   """
 
   use GenServer
-  alias ZssService.{Heartbeat, Message, Receiver}
+  alias ZssService.{Heartbeat, Message}
   require Logger
 
   @not_found "404"
@@ -58,7 +58,11 @@ defmodule ZssService.Service do
 
     :czmq.zctx_set_linger(ctx, 0)
     socket = :czmq.zsocket_new(ctx, :dealer)
-    state = %State{config: StateConfig.new(config), socket: socket}
+
+    #Read about polling and erlang C ports
+    poller = :czmq.subscribe_link(socket, [poll_interval: 50])
+
+    state = %State{config: StateConfig.new(config), socket: socket, poller: poller}
 
     #remove any message after closing
     Logger.debug("Assuming identity #{identity}")
@@ -103,13 +107,12 @@ defmodule ZssService.Service do
     #Todo, create proper master supervisor outside of this process and link properly
     {:ok, supervisor} = Task.Supervisor.start_link()
     Task.Supervisor.start_child(supervisor, Heartbeat, :start, [socket, config])
-    Task.Supervisor.start_child(supervisor, Receiver, :start, [socket, self()])
 
-    {:reply, :ok, state}
+    {:reply, :ok, %State{state | supervisor: supervisor}}
   end
 
-  def handle_info({:message, msg}, %{handlers: handlers, socket: socket} = state) do
-    handle_msg(msg, socket, handlers)
+  def handle_info({_poller, msg}, %{handlers: handlers, socket: socket} = state) do
+    handle_msg(msg |> Message.parse, socket, handlers)
 
     {:noreply, state}
   end
@@ -178,7 +181,9 @@ defmodule ZssService.Service do
   @doc """
   Cleans up open resources
   """
-  def terminate(_reason, %{socket: socket}) do
+  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+    Supervisor.stop(supervisor)
+    :czmq.unsubscribe(poller)
     :czmq.zsocket_destroy(socket)
     :normal
   end
