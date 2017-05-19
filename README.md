@@ -1,19 +1,37 @@
-# ZssService
+# ZSS ZeroMQ Service
 
-**TODO: Add description**
+**Warning: NOT PRODUCTION READY**
+
+## Purpose
+
+This is an Elixir implementation of a service worker for the [Micro Toolkit ZSS Broker](https://github.com/micro-toolkit/zmq-service-suite-broker-js). This is not an official repo.
+
+It allows connecting your Elixir application to an existing NodeJS project using the Broker and its associated clients/workers.
+
+## When to use this
+
+In order to use ZeroMQ with erlang, you have 3 options.
+
+1. Use one of the libraries that connect to ZeroMQ using Erlang NIF. This is risky because using NIFs, you can no longer guarantee the fault tolerance the Beam VM provides you with.
+2. Use a port that acts as an intermediate between the ZeroMQ czmq libraries and Erlang. The consequence is you need to poll the messages into Erlang/Elixir. This can cause a slight increase in latency.
+3. Use a full Erlang based ZMQ implementation.
+
+The second option has been chosen for this project, the slight increase in latency is worth the tradeoff compared to losing the reliabily of the Beam VM.
+
+This library is intended for use when you want to add an Elixir/Erlang based service into your existing ZSS stack using the official Ruby/NodeJS clients and workers.
+
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `zss_service` to your list of dependencies in `mix.exs`:
+T.B.D.
 
-```elixir
-def deps do
-  [{:zss_service, "~> 0.1.0"}]
-end
-```
+## Running the example
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/zss_service](https://hexdocs.pm/zss_service).
+To run the example, ensure you retrieved the neccesary dependencies.
+
+```mix deps.get```
+
+Afterwards, run the provided example shell script.
+
+```./examples/pong.sh```
 
