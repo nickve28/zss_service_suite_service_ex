@@ -11,7 +11,7 @@ defmodule ZssService do
     import Supervisor.Spec, warn: false
 
     children = [
-      supervisor(ZssService.ServiceSupervisor, [])
+      supervisor(ZssService.ServicesSupervisor, [])
     ]
 
     opts = [strategy: :one_for_one, name: User.Supervisor]
@@ -19,6 +19,10 @@ defmodule ZssService do
   end
 
   def get_instance(config) when is_map(config) do
-    ZssService.ServiceSupervisor.start_child(config)
+    #Start supervisor for new instance
+    {:ok, sup} = ZssService.ServicesSupervisor.start_child(__MODULE__)
+
+    {:ok, pid} = ZssService.ServiceSupervisor.start_child(sup, {ZssService.Service, :start_link, [config]})
+
   end
 end

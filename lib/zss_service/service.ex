@@ -47,10 +47,10 @@ defmodule ZssService.Service do
   - config: A map containg sid (required), broker, and heartbeat\n
   """
   def start_link(%{sid: sid} = config) when is_binary(sid) do
-    GenServer.start_link(__MODULE__, config)
+    GenServer.start_link(__MODULE__, {config, self})
   end
 
-  def init(%{sid: sid} = config) do
+  def init({%{sid: sid} = config, sup}) do
     {:ok, ctx} = :czmq.start_link
 
     identity = get_identity(sid) |> String.to_charlist
@@ -62,7 +62,7 @@ defmodule ZssService.Service do
     #Read about polling and erlang C ports
     poller = :czmq.subscribe_link(socket, [poll_interval: 50])
 
-    state = %State{config: StateConfig.new(config), socket: socket, poller: poller}
+    state = %State{config: StateConfig.new(config), socket: socket, poller: poller, supervisor: sup}
 
     #remove any message after closing
     Logger.debug("Assuming identity #{identity}")
@@ -98,17 +98,17 @@ defmodule ZssService.Service do
     {:reply, :ok, %{state | handlers: handlers}}
   end
 
-  def handle_call(:run, _from, %{config: %{sid: sid, identity: identity} = config, socket: socket} = state) do
+  def handle_call(:run, _from, %{config: %{sid: sid, identity: identity} = config, socket: socket, supervisor: sup} = state) do
     register_msg = Message.new "SMI", "UP"
     register_msg = %Message{register_msg | payload: sid, identity: identity}
     :ok = send_request(socket, register_msg)
 
-    #Run in background and let the Task Supervisor handle supervision for us.
-    #Todo, create proper master supervisor outside of this process and link properly
-    {:ok, supervisor} = Task.Supervisor.start_link()
-    Task.Supervisor.start_child(supervisor, Heartbeat, :start, [socket, config])
+    #Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
+    Task.async(fn ->
+      ZssService.ServiceSupervisor.start_child(sup, {Heartbeat, :start, [socket, config]})
+    end)
 
-    {:reply, :ok, %State{state | supervisor: supervisor}}
+    {:reply, :ok, state}
   end
 
   def handle_info({_poller, msg}, %{handlers: handlers, socket: socket} = state) do
@@ -134,15 +134,14 @@ defmodule ZssService.Service do
   @doc """
   Handles REQ messages intended to run a registered verb.
   """
-  defp handle_msg(%Message{address: %{verb: verb}, type: "REQ"} = msg, socket, handlers) do
+  defp handle_msg(%Message{} = msg, socket, handlers) do
     Logger.info("Received message #{msg.identity} routed to #{msg.address.verb}")
 
-    handler_fn = Map.get(handlers, verb)
+    handler_fn = Map.get(handlers, msg.address.verb)
 
     case handler_fn do
       handler_fn when is_function(handler_fn) -> #is a function handler
-        %{headers: headers, payload: payload} = msg
-        {:ok, {result, %{status: status}}} = handler_fn.(payload, headers)
+        {:ok, {result, %{status: status}}} = handler_fn.(msg.payload, msg.headers)
         reply = %Message{msg |
           payload: result,
           status: status,
