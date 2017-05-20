@@ -142,11 +142,14 @@ defmodule ZssService.Service do
 
     case handler_fn do
       handler_fn when is_function(handler_fn) -> #is a function handler
-        {:ok, {result, %{status: status}}} = handler_fn.(msg.payload, msg.headers)
+        {:ok, {result, result_message}} = handler_fn.(msg.payload, msg.headers)
+
+        status = Map.get(result_message, :status, "200")
+
         reply = %Message{msg |
           payload: result,
-          status: status,
-          type: "REP"
+          type: "REP",
+          status: status
         }
         send_reply(socket, reply)
       _ -> #no matching handler found. Default to 404

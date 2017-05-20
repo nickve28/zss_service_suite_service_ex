@@ -107,7 +107,7 @@ defmodule ZssService.Message do
       message.rid,
       pack!(Map.from_struct(message.address)),
       pack!(message.headers),
-      message.status,
+      message.status, #todo, investigate why integer / nil fails
       pack!(message.payload)
     ]
   end
