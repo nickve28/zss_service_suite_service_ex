@@ -1,5 +1,7 @@
 # ZSS ZeroMQ Service
 
+https://travis-ci.org/nickve28/zss_service_suite_service_ex.svg?branch=master
+
 **Warning: NOT PRODUCTION READY**
 
 ## Purpose
