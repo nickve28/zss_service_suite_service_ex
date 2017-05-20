@@ -1,4 +1,8 @@
 defmodule ZssService.Adapters.Sender do
+  @moduledoc """
+  Behavior for data sending, used for contract
+  """
+
   @callback new_socket(%{type: atom(), linger: Integer}) :: pid()
   @callback link_to_poller(pid()) :: pid()
   @callback connect(pid(), String.t, String.t) :: :ok
