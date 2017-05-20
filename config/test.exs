@@ -1,7 +1,8 @@
 use Mix.Config
 
 config :logger,
-  compile_time_purge_level: :error
+  backends: []
 
 config :zss_service,
-  socket_adapter: ZssService.Mocks.Adapters.Socket
+  socket_adapter: ZssService.Mocks.Adapters.Socket,
+  service_supervisor: ZssService.Mocks.ServiceSupervisor

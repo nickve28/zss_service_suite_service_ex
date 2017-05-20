@@ -27,9 +27,10 @@ defmodule Examples.SampleHandler do
   end
 
   def ping_me_more(_payload, message) do
+    %{"userId" => user_id} = message
     {:ok, {
-      [%{ping: "PONG"}, %{ping: "PANG"}],
-      Map.merge(message, %{status: "200"})
+      [%{ping: "PONG", user_id: user_id}, %{ping: "PANG", user_id: user_id}],
+      Map.merge(message, %{status: "202"})
      }}
   end
 end

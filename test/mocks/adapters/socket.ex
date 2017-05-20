@@ -28,12 +28,16 @@ defmodule ZssService.Mocks.Adapters.Socket do
     GenServer.call(__MODULE__, {:stub, verb, response})
   end
 
+  def restore(verb) do
+    GenServer.call(__MODULE__, {:restore, verb})
+  end
+
   #Simulate functions
   def new_socket(config), do: GenServer.call(__MODULE__, {:new_socket, [config]})
 
   def link_to_poller(socket), do: GenServer.call(__MODULE__, {:link_to_poller, [socket]})
 
-  def connect(socket, identity, server), do: GenServer.call(__MODULE__, {:send, [socket, identity, server]})
+  def connect(socket, identity, server), do: GenServer.call(__MODULE__, {:connect, [socket, identity, server]})
 
   def send(socket, msg), do: GenServer.call(__MODULE__, {:send, [socket, msg]})
 
@@ -41,6 +45,11 @@ defmodule ZssService.Mocks.Adapters.Socket do
 
   def handle_call({:stub, verb, response}, _from, %State{handlers: handlers} = state) do
     handlers = Map.put(handlers, verb, response)
+    {:reply, :ok, %State{state | handlers: handlers}}
+  end
+
+  def handle_call({:restore, verb}, _from, %State{handlers: handlers} = state) do
+    handlers = Map.drop(handlers, [verb])
     {:reply, :ok, %State{state | handlers: handlers}}
   end
 
@@ -54,8 +63,12 @@ defmodule ZssService.Mocks.Adapters.Socket do
     {:reply, :ok, new_state}
   end
 
-  def handle_call({verb, _args}, _from, %{state: :enabled, handlers: handlers} = state) do
+  def handle_call({verb, args}, _from, %{state: :enabled, handlers: handlers} = state) do
     response = Map.get(handlers, verb, :ok) #default to :ok
+    |> case do
+      f when is_function(f) -> apply(f, args)
+      stub -> stub
+    end
     {:reply, response, state}
   end
 

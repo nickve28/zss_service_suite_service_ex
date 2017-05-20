@@ -5,4 +5,9 @@ config :logger,
   compile_time_purge_level: :info
 
 config :zss_service,
-  socket_adapter: ZssService.Adapters.Socket
+  socket_adapter: ZssService.Adapters.Socket,
+  service_supervisor: ZssService.ServiceSupervisor
+
+if (Mix.env == :test) do
+  import_config "test.exs"
+end

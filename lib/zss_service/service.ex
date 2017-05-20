@@ -9,6 +9,7 @@ defmodule ZssService.Service do
 
   @not_found "404"
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
+  @service_supervisor Application.get_env(:zss_service, :service_supervisor)
 
   defmodule StateConfig do
     @moduledoc """
@@ -105,7 +106,7 @@ defmodule ZssService.Service do
 
     #Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
     Task.async(fn ->
-      ZssService.ServiceSupervisor.start_child(sup, {Heartbeat, :start, [socket, config]})
+      @service_supervisor.start_child(sup, {Heartbeat, :start, [socket, config]})
     end)
 
     {:reply, :ok, state}

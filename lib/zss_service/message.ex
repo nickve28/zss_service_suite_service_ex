@@ -128,7 +128,7 @@ defmodule ZssService.Message do
   iex> frames = ["ZSS:0.0", "REP", rid, encoded_address, encoded_headers, "200", encoded_payload]
   iex> message = ZssService.Message.parse(frames)
   iex> %ZssService.Message{rid: ^rid, status: "200", type: "REP", protocol: "ZSS:0.0"} = message
-  iex> %ZssService.Message{headers: headers, payload: payload, address: address} = message
+  iex> %ZssService.Message{headers: headers, payload: payload, address: _address} = message
   iex> headers
   %{"headers" => %{"X-REQUEST-ID" => "123"}}
   iex> payload
