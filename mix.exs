@@ -12,7 +12,7 @@ defmodule ZssService.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger, :czmq, :uuid],
+      extra_applications: [:logger, :czmq, :uuid, :msgpax],
       mod: {ZssService, []}
     ]
   end
