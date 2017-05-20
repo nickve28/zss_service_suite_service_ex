@@ -55,7 +55,9 @@ defmodule ZssService.Service do
   def init({%{sid: sid} = config, sup}) do
     sid = sid |> String.upcase
 
-    identity = get_identity(sid) |> String.to_charlist
+    identity = sid
+    |> get_identity()
+    |> String.to_charlist
     config = Map.put(config, :identity, identity)
 
     opts = %{type: :dealer, linger: 0}
@@ -67,7 +69,7 @@ defmodule ZssService.Service do
     state = %State{config: StateConfig.new(%{config | sid: sid}), socket: socket, poller: poller, supervisor: sup}
 
     #remove any message after closing
-    Logger.debug("Assuming identity #{identity}")
+    Logger.debug(fn -> "Assuming identity #{identity}" end)
     @socket_adapter.connect(socket, identity, state.config.broker)
 
     #Initiate heartbeats
@@ -78,7 +80,7 @@ defmodule ZssService.Service do
   Register a verb to this worker. It will respond to the given verb and pass the payload and message
   """
   def add_verb(pid, {verb, module, fun}) when is_atom(fun) and is_binary(verb) do
-    Logger.debug("Register verb #{verb} targetted to module #{module}")
+    Logger.debug(fn -> "Register verb #{verb} targetted to module #{module}" end)
     GenServer.call(pid, {:add_verb, {verb, module, fun}})
   end
 
@@ -90,11 +92,11 @@ defmodule ZssService.Service do
   end
 
   def handle_call({:add_verb, {verb, module, fun}}, _from, %{handlers: handlers} = state) do
-    handlerFn = fn payload, message ->
+    handler_fn = fn payload, message ->
       apply(module, fun, [payload, message])
     end
 
-    handlers = Map.put(handlers, String.upcase(verb), handlerFn)
+    handlers = Map.put(handlers, String.upcase(verb), handler_fn)
 
     {:reply, :ok, %{state | handlers: handlers}}
   end

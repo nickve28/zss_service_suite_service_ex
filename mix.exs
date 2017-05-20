@@ -27,7 +27,8 @@ defmodule ZssService.Mixfile do
     [
       {:czmq, github: "gar1t/erlang-czmq", compile: "LDFLAGS=-lrt ./configure; make"},
       {:msgpax, "~> 1.0"},
-      {:uuid, "~> 1.1"}
+      {:uuid, "~> 1.1"},
+      {:credo, "~> 0.3", only: [:dev, :test]}
     ]
   end
 end
