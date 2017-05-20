@@ -19,7 +19,7 @@ defmodule ZssService.Mixfile do
 
   defp deps do
     [
-      {:czmq, github: "gar1t/erlang-czmq", compile: "export LDFLAGS=-lrt; ./configure; make"},
+      {:czmq, github: "gar1t/erlang-czmq", compile: "LDFLAGS=-lrt ./configure; make"},
       {:msgpax, "~> 1.0"},
       {:uuid, "~> 1.1"}
     ]
