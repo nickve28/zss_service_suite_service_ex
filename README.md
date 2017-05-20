@@ -1,6 +1,6 @@
 # ZSS ZeroMQ Service
 
-https://travis-ci.org/nickve28/zss_service_suite_service_ex.svg?branch=master
+[![Build Status](https://travis-ci.org/nickve28/zss_service_suite_service_ex.svg?branch=master)](https://travis-ci.org/nickve28/zss_service_suite_service_ex)
 
 **Warning: NOT PRODUCTION READY**
 
