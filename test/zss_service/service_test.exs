@@ -1,14 +1,22 @@
 defmodule ZssService.ServiceTest do
+  @moduledoc false
+
   use ExUnit.Case, async: false
 
-  alias ZssService.Service
-  alias ZssService.Mocks.Adapters.Socket
+  alias ZssService.{Service, Message}
+  alias ZssService.Mocks.{Adapters.Socket, ServiceSupervisor}
   doctest Service
 
   setup_all do
     Socket.enable
+    ServiceSupervisor.enable
 
-    on_exit(fn -> Socket.disable end)
+    Socket.stub(:link_to_poller, {:ok, spawn(fn -> :ok end)})
+
+    on_exit(fn ->
+      Socket.disable
+      ServiceSupervisor.disable
+    end)
   end
 
   describe "when making a new worker" do
@@ -105,6 +113,7 @@ defmodule ZssService.ServiceTest do
     end
   end
 
+  #some case fails where unit tests run the process, perhaps a non matching stub response somewhere
   describe "when running the worker" do
     setup do
       on_exit(fn ->
@@ -164,12 +173,13 @@ defmodule ZssService.ServiceTest do
       on_exit(fn ->
         Socket.restore(:new_socket)
         Socket.restore(:send)
+        Socket.restore(:cleanup)
       end)
     end
 
     @tag :receive
     test "should handle heartbeat REP messages" do
-      Socket.stub(:new_socket, self)
+      Socket.stub(:new_socket, self())
 
       Socket.stub(:send, fn test_pid, _msg ->
         message = ZssService.Message.new "SMI", "HEARTBEAT"
@@ -195,12 +205,12 @@ defmodule ZssService.ServiceTest do
 
     @tag :receive
     test "should handle UP REP messages" do
-      Socket.stub(:new_socket, self)
+      Socket.stub(:new_socket, self())
 
       Socket.stub(:send, fn test_pid, _msg ->
-        message = ZssService.Message.new "SMI", "UP"
-        message = %ZssService.Message{message | type: "REP"}
-        message = %ZssService.Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+        message = Message.new "SMI", "UP"
+        message = %Message{message | type: "REP"}
+        message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
 
         send(test_pid, message)
         :ok
@@ -221,13 +231,13 @@ defmodule ZssService.ServiceTest do
 
     @tag :receive
     test "should handle matching verbs" do
-      Socket.stub(:new_socket, self)
+      Socket.stub(:new_socket, self())
 
       Socket.stub(:send, fn test_pid, _msg ->
-        message = ZssService.Message.new "PING", "GET"
-        message = %ZssService.Message{message | payload: %{"id" => "1"}}
-        message = %ZssService.Message{message | headers: %{"X-REQUEST-ID" => "123"}}
-        message = %ZssService.Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+        message = Message.new "PING", "GET"
+        message = %Message{message | payload: %{"id" => "1"}}
+        message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+        message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
 
         send(test_pid, message)
         :ok
