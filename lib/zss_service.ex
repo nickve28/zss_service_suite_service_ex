@@ -1,5 +1,8 @@
 defmodule ZssService do
   use Application
+  alias ZssService.Configuration.{Config, Handler}
+  alias ZssService.ServicesSupervisor
+
   @moduledoc """
   Documentation for ZssService.
   """
@@ -18,11 +21,23 @@ defmodule ZssService do
     Supervisor.start_link(children, opts)
   end
 
-  def get_instance(config) when is_map(config) do
-    #Start supervisor for new instance
-    {:ok, sup} = ZssService.ServicesSupervisor.start_child(__MODULE__)
+  def get_instance(%{sid: sid} = config) when is_map(config) do
+    optional_config = Map.drop(config, [:sid])
+    Config.new(sid, optional_config)
+  end
 
-    {:ok, pid} = ZssService.ServiceSupervisor.start_child(sup, {ZssService.Service, :start_link, [config]})
+  def add_verb(%Config{} = configuration, {verb, module, fun}) do
+    handlers = Config.add_handler(configuration, verb, {module, fun})
+  end
 
+  def run(%Config{} = configuration) do
+    {:ok, pid} = ServicesSupervisor.start_child(configuration)
+
+    service_pid = for {ZssService.Service, process, _, _} <- Supervisor.which_children(pid) do
+      process
+    end
+    |> List.first
+
+    {:ok, service_pid}
   end
 end

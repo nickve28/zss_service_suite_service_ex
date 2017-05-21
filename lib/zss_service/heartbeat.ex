@@ -1,4 +1,6 @@
 defmodule ZssService.Heartbeat do
+  use GenServer
+
   @moduledoc """
   This module will handle the heartbeats that have to be sent. Since this should not hinder
   The actual socket, it's extracted to a several module that will be supervised
@@ -18,21 +20,32 @@ defmodule ZssService.Heartbeat do
   - socket: ZMQ Socket\n
   - config: the config, containing sid, identity and heartbeat. Used to route the heartbeat message with the right identity and interval\n
   """
-  def start(socket, %{sid: sid, identity: identity, heartbeat: heartbeat} = config) do
+  def start_link(socket, config, identity) do
+    Logger.debug(fn -> "START INFO HEARTBEAT" end)
+    GenServer.start_link(__MODULE__, {socket, config, identity}, [])
+  end
+
+  def init({socket, config, identity}) do
+    Process.send_after(self(), {:heartbeat, socket, config, identity}, 100)
+    {:ok, []}
+  end
+
+  def handle_info({:heartbeat, socket, config, identity}, state) do
+    %{heartbeat: heartbeat, sid: sid} = config
     heartbeat_msg = Message.new "SMI", "HEARTBEAT"
 
     heartbeat_msg = %Message{heartbeat_msg | identity: identity, payload: sid}
     :ok = send_request(socket, heartbeat_msg)
 
-    #Todo better mechanism than timers perhaps
-    :timer.sleep(heartbeat)
-    start(socket, config)
+    Process.send_after(self(), {:heartbeat, socket, config, identity}, heartbeat)
+
+    {:noreply, state}
   end
 
   #TODO DRY
   defp send_request(socket, message) do
     Logger.debug(fn ->
-      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb} from #{inspect self()}"
     end)
 
     @socket_adapter.send(socket, message |> Message.to_frames)

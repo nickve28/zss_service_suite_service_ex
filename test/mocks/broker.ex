@@ -5,6 +5,7 @@ defmodule ZssService.Mocks.Broker do
 
   def get_instance(%{address: address}) do
     {:ok, context} = :czmq.start_link
+    :ok = :czmq.zctx_set_linger(context, 0)
 
     broker = :czmq.zsocket_new(context, :router)
     {:ok, _port} = :czmq.zsocket_bind(broker, address)
@@ -32,5 +33,9 @@ defmodule ZssService.Mocks.Broker do
   def send(broker, [identity | _] = frames) do
     payload = [identity | frames]
     :ok = :czmq.zsocket_send_all(broker, payload)
+  end
+
+  def cleanup(router) do
+    :czmq.zsocket_destroy(router)
   end
 end

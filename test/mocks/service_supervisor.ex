@@ -21,8 +21,8 @@ defmodule ZssService.Mocks.ServiceSupervisor do
     GenServer.call(__MODULE__, {:stop, pid})
   end
 
-  def start_child(sup, {module, fun, [socket, config]}) do
-    GenServer.call(__MODULE__, {:start_child, {sup, {module, fun, [socket, config]}}})
+  def start_child(sup, {module, fun, args}) do
+    GenServer.call(__MODULE__, {:start_child, {sup, {module, fun, args}}})
   end
 
   def handle_call(:enable, _from, _), do: {:reply, :ok, :enabled}
