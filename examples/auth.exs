@@ -1,13 +1,10 @@
-defmodule Example.Pong do
+defmodule Example.Auth do
   def start do
-    config = %{
-      sid: "CLAIM"
-    }
+    config = "CLAIM"
+    |> ZssService.get_instance config
+    |> ZssService.add_verb("verify", {Examples.SampleHandler, :verify})
 
-    {:ok, pid} = ZssService.get_instance config
-    ZssService.Service.add_verb(pid, {"verify", Examples.SampleHandler, :verify})
-
-    ZssService.Service.run pid
+    ZssService.Service.run config
 
     loop
   end

@@ -1,19 +1,16 @@
 defmodule Example.Pong do
   def start do
-    config = %{
-      sid: "PING_ME"
-    }
+    config = %{sid: "PING_ME"}
+    |> ZssService.get_instance
+    |> ZssService.add_verb({"get", Examples.SampleHandler, :ping_me})
+    |> ZssService.add_verb({"list", Examples.SampleHandler, :ping_me_more})
 
-    {:ok, pid} = ZssService.get_instance config
-    ZssService.Service.add_verb(pid, {"get", Examples.SampleHandler, :ping_me})
-    ZssService.Service.add_verb(pid, {"list", Examples.SampleHandler, :ping_me_more})
-
-    ZssService.Service.run pid
+    {:ok, pid} = ZssService.run config
 
     loop
   end
 
-  def loop() do #Keep the script running
+  def loop do #Keep the script running
     loop()
   end
 end

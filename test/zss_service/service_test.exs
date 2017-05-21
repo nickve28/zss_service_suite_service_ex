@@ -3,7 +3,7 @@ defmodule ZssService.ServiceTest do
 
   use ExUnit.Case, async: false
 
-  alias ZssService.{Service, Message}
+  alias ZssService.{Service, Message, Configuration.Config}
   alias ZssService.Mocks.{Adapters.Socket, ServiceSupervisor}
   doctest Service
 
@@ -17,100 +17,6 @@ defmodule ZssService.ServiceTest do
       Socket.disable
       ServiceSupervisor.disable
     end)
-  end
-
-  describe "when making a new worker" do
-    test "should make sid uppercase" do
-      config = %{sid: "ping"}
-
-      {:ok, pid} = Service.start_link(config)
-      assert %{config: %{sid: "PING"}} = :sys.get_state(pid)
-    end
-
-    test "should default to heartbeat 1000 if nothing is specified" do
-      config = %{sid: "PING"}
-
-      {:ok, pid} = Service.start_link(config)
-      assert %{config: %{heartbeat: 1000}} = :sys.get_state(pid)
-    end
-
-    test "should allow custom heartbeat" do
-      config = %{sid: "PING", heartbeat: 1500}
-
-      {:ok, pid} = Service.start_link(config)
-      assert %{config: %{heartbeat: 1500}} = :sys.get_state(pid)
-    end
-
-    test "should default to broker tcp://127.0.0.1:7776 if nothing is specified" do
-      config = %{sid: "PING"}
-
-      {:ok, pid} = Service.start_link(config)
-      assert %{config: %{broker: "tcp://127.0.0.1:7776"}} = :sys.get_state(pid)
-    end
-
-    test "should allow custom broker address" do
-      config = %{sid: "PING", broker: "tcp://192.168.0.1:7776"}
-
-      {:ok, pid} = Service.start_link(config)
-      assert %{config: %{broker: "tcp://192.168.0.1:7776"}} = :sys.get_state(pid)
-    end
-
-    test "should add identity to the config" do
-      config = %{sid: "PING", broker: "tcp://192.168.0.1:7776"}
-
-      {:ok, pid} = Service.start_link(config)
-      %{config: %{identity: identity}} = :sys.get_state(pid)
-      identity = identity |> String.Chars.to_string
-      assert Regex.match?(~r/PING#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, identity) === true
-    end
-  end
-
-  describe "when adding a verb" do
-    test "should make the verb uppercase" do
-      config = %{sid: "ping"}
-
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-      assert %{handlers: %{"GET" => _fun}} =:sys.get_state(pid)
-    end
-
-    test "calling the handler should send payload" do
-      config = %{sid: "ping"}
-
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-      %{handlers: %{"GET" => fun}} =:sys.get_state(pid)
-
-      payload = %{"id" => 1}
-      headers = %{"X-REQUEST-ID" => "123"}
-
-      fun.(payload, headers)
-      receive do
-        message ->
-          assert {:test_message, ^payload, _} = message
-      after 2000 ->
-        raise "Timeout, no message received!"
-      end
-    end
-
-    test "calling the handler should send headers" do
-      config = %{sid: "ping"}
-
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-      %{handlers: %{"GET" => fun}} =:sys.get_state(pid)
-
-      payload = %{"id" => 1}
-      headers = %{"X-REQUEST-ID" => "123"}
-
-      fun.(payload, headers)
-      receive do
-        message ->
-          assert {:test_message, _, ^headers} = message
-      after 2000 ->
-        raise "Timeout, no message received!"
-      end
-    end
   end
 
   #some case fails where unit tests run the process, perhaps a non matching stub response somewhere
@@ -132,12 +38,11 @@ defmodule ZssService.ServiceTest do
         :ok
       end)
 
-      config = %{sid: "ping"}
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-
-      :ok = Service.run(pid)
+      {:ok, _pid} = Service.start_link(config)
     end
 
     @tag :run
@@ -159,12 +64,11 @@ defmodule ZssService.ServiceTest do
 
         :ok
       end)
-      config = %{sid: "ping"}
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-
-      :ok = Service.run(pid)
+      {:ok, _pid} = Service.start_link(config)
     end
   end
 
@@ -190,12 +94,11 @@ defmodule ZssService.ServiceTest do
         :ok
       end)
 
-      config = %{sid: "ping"}
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-
-      :ok = Service.run(pid)
+      {:ok, _pid} = Service.start_link(config)
 
       receive do
         message ->
@@ -216,12 +119,11 @@ defmodule ZssService.ServiceTest do
         :ok
       end)
 
-      config = %{sid: "ping"}
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-
-      :ok = Service.run(pid)
+      {:ok, _pid} = Service.start_link(config)
 
       receive do
         message ->
@@ -243,12 +145,11 @@ defmodule ZssService.ServiceTest do
         :ok
       end)
 
-      config = %{sid: "ping"}
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, pid} = Service.start_link(config)
-      Service.add_verb(pid, {"get", ZssService.Mocks.TestSender, :send_me})
-
-      :ok = Service.run(pid)
+      {:ok, _pid} = Service.start_link(config)
 
       receive do
         message ->

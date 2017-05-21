@@ -48,8 +48,9 @@ defmodule ZssService.Adapters.Socket do
   Cleanup resources: Poller and socket
   """
   def cleanup(socket, poller) do
-    :czmq.unsubscribe(poller)
     :czmq.zsocket_destroy(socket)
+    :czmq.unsubscribe(poller)
+
     :ok
   end
 end

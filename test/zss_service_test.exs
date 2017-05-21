@@ -3,11 +3,12 @@ defmodule ZssServiceTest do
   @moduledoc false
 
   alias ZssService.Mocks.{Broker}
-  alias ZssService.{Service, Message}
+  alias ZssService.{Message}
 
   #Integration specs
   setup do
     {:ok, broker} = Broker.get_instance(%{address: "tcp://127.0.0.1:7776"})
+
     {:ok, broker: broker}
   end
 
@@ -15,8 +16,9 @@ defmodule ZssServiceTest do
   test "Setting up should connect the service to the broker", %{broker: broker} do
     config = %{sid: "FOO1"}
 
-    {:ok, instance} = ZssService.get_instance(config)
-    :ok = Service.run(instance)
+    {:ok, _pid} = config
+    |> ZssService.get_instance
+    |> ZssService.run
 
     assert ["FOO" <> _uuid, _, "REQ", _rid, address | _] = Broker.receive(broker)
     assert %{"sid" => "SMI", "verb" => "UP"} = Msgpax.unpack!(address)
@@ -26,8 +28,9 @@ defmodule ZssServiceTest do
   test "Setting up should initiate heartbeats and send regularly", %{broker: broker} do
     config = %{sid: "FOO2"}
 
-    {:ok, instance} = ZssService.get_instance(config)
-    :ok = Service.run(instance)
+    {:ok, _pid} = config
+    |> ZssService.get_instance
+    |> ZssService.run
 
     ["FOO" <> _uuid | _] = Broker.receive(broker)
     :timer.sleep(1200) #wait for messages
@@ -43,11 +46,11 @@ defmodule ZssServiceTest do
   test "Setting up should receive messages and send replies accordingly", %{broker: broker} do
     config = %{sid: "FOO3"}
 
-    {:ok, instance} = ZssService.get_instance(config)
-    Service.add_verb(instance, {"PING", ZssService.Mocks.TestSender, :ping})
-    #{:ok, {"PONG", %{message | status: "202"}}}
+    config = config
+    |> ZssService.get_instance
+    |> ZssService.add_verb({"PING", ZssService.Mocks.TestSender, :ping})
 
-    :ok = Service.run(instance)
+    {:ok, instance} = ZssService.run(config)
 
     ["FOO3" <> _uuid | _] = Broker.receive(broker)
 
@@ -65,17 +68,17 @@ defmodule ZssServiceTest do
     assert "PONG" === Msgpax.unpack!(payload)
   end
 
-  @tag :zmq
+  @tag :down
   test "Should cleanup when the DOWN command is sent", %{broker: broker} do
-    config = %{sid: "FOO3"}
+    config = %{sid: "FOO4"}
 
-    {:ok, instance} = ZssService.get_instance(config)
-    Service.add_verb(instance, {"PING", ZssService.Mocks.TestSender, :ping})
-    #{:ok, {"PONG", %{message | status: "202"}}}
+    config = config
+    |> ZssService.get_instance
+    |> ZssService.add_verb({"PING", ZssService.Mocks.TestSender, :ping})
 
-    :ok = Service.run(instance)
+    {:ok, instance} = ZssService.run(config)
 
-    ["FOO3" <> _uuid | _] = Broker.receive(broker)
+    ["FOO4" <> _uuid | _] = Broker.receive(broker)
 
     #TODO find out how to send messages properly from broker.
     #For now, we send the message instead

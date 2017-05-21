@@ -4,28 +4,12 @@ defmodule ZssService.Service do
   """
 
   use GenServer
-  alias ZssService.{Heartbeat, Message}
+  alias ZssService.{Heartbeat, Message, Configuration.Config}
   require Logger
 
   @not_found "404"
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
-
-  defmodule StateConfig do
-    @moduledoc """
-    Struct for the configuration stored in the state, with appropriate defaults
-    """
-    defstruct [
-      broker: "tcp://127.0.0.1:7776",
-      heartbeat: 1000,
-      sid: nil,
-      identity: nil
-    ]
-
-    def new(config) do
-      Map.merge(%StateConfig{}, config)
-    end
-  end
 
   defmodule State do
     @moduledoc """
@@ -33,9 +17,9 @@ defmodule ZssService.Service do
     """
 
     defstruct [
-      config: %StateConfig{},
+      config: nil,
+      identity: nil,
       socket: nil,
-      handlers: %{},
       poller: nil,
       supervisor: nil
     ]
@@ -48,17 +32,20 @@ defmodule ZssService.Service do
 
   - config: A map containg sid (required), broker, and heartbeat\n
   """
-  def start_link(%{sid: sid} = config) when is_binary(sid) do
+  def start_link(%Config{sid: sid} = config) when is_binary(sid) do
     GenServer.start_link(__MODULE__, {config, self})
   end
 
-  def init({%{sid: sid} = config, sup}) do
-    sid = sid |> String.upcase
+  def init({%Config{sid: sid} = config, supervisor}) do
+    Logger.debug(fn -> "Initializing process with id #{inspect self()}" end)
+
+    sid = sid
+    |> String.upcase
 
     identity = sid
     |> get_identity()
     |> String.to_charlist
-    config = Map.put(config, :identity, identity)
+
 
     opts = %{type: :dealer, linger: 0}
     socket = @socket_adapter.new_socket(opts)
@@ -66,58 +53,28 @@ defmodule ZssService.Service do
     #Read about polling and erlang C ports as why I did this
     {:ok, poller} = @socket_adapter.link_to_poller(socket)
 
-    state = %State{config: StateConfig.new(%{config | sid: sid}), socket: socket, poller: poller, supervisor: sup}
+    state = %State{config: config, socket: socket, poller: poller, supervisor: supervisor, identity: identity}
 
-    #remove any message after closing
     Logger.debug(fn -> "Assuming identity #{identity}" end)
     @socket_adapter.connect(socket, identity, state.config.broker)
 
-    #Initiate heartbeats
+    register(socket, sid, identity)
+    initiate_heartbeat(socket, state)
+
     {:ok, state}
   end
 
-  @doc """
-  Register a verb to this worker. It will respond to the given verb and pass the payload and message
-  """
-  def add_verb(pid, {verb, module, fun}) when is_atom(fun) and is_binary(verb) do
-    Logger.debug(fn -> "Register verb #{verb} targetted to module #{module}" end)
-    GenServer.call(pid, {:add_verb, {verb, module, fun}})
-  end
-
-  @doc """
-  Starts the worker. Causes heartbeats to be run and registers itself to the broker
-  """
-  def run(pid) do
-    GenServer.call(pid, :run)
-  end
-
-  def handle_call({:add_verb, {verb, module, fun}}, _from, %{handlers: handlers} = state) do
-    handler_fn = fn payload, message ->
-      apply(module, fun, [payload, message])
-    end
-
-    handlers = Map.put(handlers, String.upcase(verb), handler_fn)
-
-    {:reply, :ok, %{state | handlers: handlers}}
-  end
-
-  def handle_call(:run, _from, %{config: %{sid: sid, identity: identity} = config, socket: socket, supervisor: sup} = state) do
-    register_msg = Message.new "SMI", "UP"
-    register_msg = %Message{register_msg | payload: sid, identity: identity}
-    :ok = send_request(socket, register_msg)
-
-    #Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
-    Task.async(fn ->
-      @service_supervisor.start_child(sup, {Heartbeat, :start, [socket, config]})
-    end)
-
-    {:reply, :ok, state}
-  end
-
   #TODO: make is_frames macro
-  def handle_info({_poller, msg}, %{handlers: handlers, socket: socket, supervisor: sup} = state) when is_list(msg) do
-    handle_msg(msg |> Message.parse, socket, handlers)
+  def handle_info({_poller, msg}, %{config: config, socket: socket, supervisor: sup} = state) when is_list(msg) do
+    handle_msg(msg |> Message.parse, socket, state)
 
+    {:noreply, state}
+  end
+
+  def handle_info(msg, %{poller: poller} = state) do
+    Logger.info("#{inspect poller}")
+
+    Logger.warn("Unexpected message found in handle_info: #{inspect msg}")
     {:noreply, state}
   end
 
@@ -138,15 +95,15 @@ defmodule ZssService.Service do
   @doc """
   Handles DOWN message from SMI
   """
-  defp handle_msg(%Message{address: %{verb: "DOWN", sid: "SMI"}}, _, _) do
+  defp handle_msg(%Message{address: %{verb: "DOWN", sid: "SMI"}}, _, %{supervisor: supervisor}) do
     Logger.info("Shutting down process after DOWN message from SMI..")
-    Process.exit(self)
+    @service_supervisor.stop(supervisor)
   end
 
   @doc """
   Handles REQ messages intended to run a registered verb.
   """
-  defp handle_msg(%Message{type: "REQ"} = msg, socket, handlers) do
+  defp handle_msg(%Message{type: "REQ"} = msg, socket, %{config: %{handlers: handlers}}) do
     Logger.info("Received message #{msg.identity} routed to #{msg.address.verb}")
 
     handler_fn = Map.get(handlers, msg.address.verb)
@@ -162,6 +119,7 @@ defmodule ZssService.Service do
           type: "REP",
           status: status
         }
+
         send_reply(socket, reply)
       _ -> #no matching handler found. Default to 404
         reply = %Message{msg |
@@ -174,6 +132,21 @@ defmodule ZssService.Service do
 
   defp handle_msg(msg, _, _) do
     :ok #match all in case, TODO: log
+  end
+
+  defp register(socket, sid, identity) do
+    Logger.debug(fn -> "Registering with broker.." end)
+    register_msg = Message.new "SMI", "UP"
+    register_msg = %Message{register_msg | payload: sid, identity: identity}
+    :ok = send_request(socket, register_msg)
+  end
+
+  defp initiate_heartbeat(socket, state) do
+    # Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
+    Task.async(fn ->
+      Logger.debug(fn -> "Starting heartbeat in process #{inspect self()} with heartbeat #{state.config.heartbeat}" end)
+      @service_supervisor.start_child(state.supervisor, {Heartbeat, :start_link, [state.socket, state.config, state.identity]})
+    end)
   end
 
   defp send_reply(socket, message) do
@@ -198,6 +171,7 @@ defmodule ZssService.Service do
   Cleans up open resources
   """
   def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+    Logger.info "Worker terminating.."
     @socket_adapter.cleanup(socket, poller)
     Supervisor.stop(supervisor)
     :normal
