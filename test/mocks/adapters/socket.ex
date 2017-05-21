@@ -64,7 +64,8 @@ defmodule ZssService.Mocks.Adapters.Socket do
   end
 
   def handle_call({verb, args}, _from, %{state: :enabled, handlers: handlers} = state) do
-    response = Map.get(handlers, verb, :ok) #default to :ok
+    response = handlers
+    |> Map.get(verb, :ok) #default to :ok
     |> case do
       f when is_function(f) -> apply(f, args)
       stub -> stub
@@ -73,7 +74,7 @@ defmodule ZssService.Mocks.Adapters.Socket do
   end
 
   def handle_call({fun_name, args}, _from, %{state: :disabled} = state) do
-    response = apply(ZssService.Adapters.Socket, args)
+    response = apply(ZssService.Adapters.Socket, fun_name, args)
     {:reply, response, state}
   end
 end

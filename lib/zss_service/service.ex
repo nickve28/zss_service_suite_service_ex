@@ -64,7 +64,7 @@ defmodule ZssService.Service do
     socket = @socket_adapter.new_socket(opts)
 
     #Read about polling and erlang C ports as why I did this
-    poller = @socket_adapter.link_to_poller(socket)
+    {:ok, poller} = @socket_adapter.link_to_poller(socket)
 
     state = %State{config: StateConfig.new(%{config | sid: sid}), socket: socket, poller: poller, supervisor: sup}
 
@@ -114,7 +114,8 @@ defmodule ZssService.Service do
     {:reply, :ok, state}
   end
 
-  def handle_info({_poller, msg}, %{handlers: handlers, socket: socket} = state) do
+  #TODO: make is_frames macro
+  def handle_info({_poller, msg}, %{handlers: handlers, socket: socket, supervisor: sup} = state) when is_list(msg) do
     handle_msg(msg |> Message.parse, socket, handlers)
 
     {:noreply, state}
@@ -135,9 +136,17 @@ defmodule ZssService.Service do
   end
 
   @doc """
+  Handles DOWN message from SMI
+  """
+  defp handle_msg(%Message{address: %{verb: "DOWN", sid: "SMI"}}, _, _) do
+    Logger.info("Shutting down process after DOWN message from SMI..")
+    Process.exit(self)
+  end
+
+  @doc """
   Handles REQ messages intended to run a registered verb.
   """
-  defp handle_msg(%Message{} = msg, socket, handlers) do
+  defp handle_msg(%Message{type: "REQ"} = msg, socket, handlers) do
     Logger.info("Received message #{msg.identity} routed to #{msg.address.verb}")
 
     handler_fn = Map.get(handlers, msg.address.verb)
@@ -163,7 +172,9 @@ defmodule ZssService.Service do
     end
   end
 
-  defp handle_msg(_, _, _), do: :ok #match all in case, TODO: log
+  defp handle_msg(msg, _, _) do
+    :ok #match all in case, TODO: log
+  end
 
   defp send_reply(socket, message) do
     Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
@@ -189,7 +200,6 @@ defmodule ZssService.Service do
   def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
     @socket_adapter.cleanup(socket, poller)
     Supervisor.stop(supervisor)
-
     :normal
   end
 end
