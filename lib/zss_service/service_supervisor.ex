@@ -20,7 +20,7 @@ defmodule ZssService.ServiceSupervisor do
       worker(ZssService.Service, [config])
     ]
 
-    opts = [strategy: :one_for_all]
+    opts = [strategy: :rest_for_one]
     Logger.debug(fn -> "Service supervisor started with #{inspect self}" end)
     supervise(children, opts)
   end

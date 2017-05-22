@@ -1,21 +1,27 @@
 defmodule Example.Auth do
+  @moduledoc false
   def start do
-    config = "CLAIM"
-    |> ZssService.get_instance config
-    |> ZssService.add_verb("verify", {Examples.SampleHandler, :verify})
+    config = %{sid: "CLAIM"}
+    |> ZssService.get_instance
+    |> ZssService.add_verb({"verify", Examples.SampleHandler, :verify})
 
-    ZssService.Service.run config
+    0..3
+    |> Enum.each(fn _ ->
+      ZssService.run config
+    end)
 
     loop
   end
 
-  def loop() do #Keep the script running
+  def loop do #Keep the script running
     loop()
   end
 end
 
 defmodule Examples.SampleHandler do
+  @moduledoc false
   defmodule VerifyPayload do
+    @moduledoc false
     defstruct [
       permissions: [],
       resourceId: nil,
@@ -45,7 +51,8 @@ defmodule Examples.SampleHandler do
   }
 
   def verify(payload, message) do
-    result = VerifyPayload.new(payload)
+    result = payload
+    |> VerifyPayload.new
     |> verify_access
     |> case do
       {:ok, result} -> {:ok, {result, message}}
@@ -71,4 +78,4 @@ defmodule Examples.SampleHandler do
 end
 
 
-Example.Pong.start
+Example.Auth.start
