@@ -1,4 +1,6 @@
 defmodule Example.Pong do
+  @moduledoc false
+
   def start do
     config = %{sid: "PING_ME"}
     |> ZssService.get_instance
@@ -6,8 +8,10 @@ defmodule Example.Pong do
     |> ZssService.add_verb({"list", Examples.SampleHandler, :ping_me_more})
 
     {:ok, pid} = ZssService.run config
+    {:ok, pid} = ZssService.run config
+    {:ok, pid} = ZssService.run config
 
-    loop
+    loop()
   end
 
   def loop do #Keep the script running
@@ -16,6 +20,8 @@ defmodule Example.Pong do
 end
 
 defmodule Examples.SampleHandler do
+  @moduledoc false
+
   def ping_me(_payload, message) do
     {:ok, {
       %{ping: "PONG"},
