@@ -90,7 +90,7 @@ defmodule ZssService.ServiceTest do
         message = %ZssService.Message{message | type: "REP"}
         message = %ZssService.Message{message | headers: %{"X-REQUEST-ID" => "123"}}
 
-        send(test_pid, message)
+        send(test_pid, {:poller_stub, message |> Message.to_frames})
         :ok
       end)
 
@@ -101,8 +101,8 @@ defmodule ZssService.ServiceTest do
       {:ok, _pid} = Service.start_link(config)
 
       receive do
-        message ->
-          assert message.address.verb === "HEARTBEAT"
+        {_, message} ->
+          assert (message |> Message.parse).address.verb === "HEARTBEAT"
       end
     end
 
@@ -115,7 +115,7 @@ defmodule ZssService.ServiceTest do
         message = %Message{message | type: "REP"}
         message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
 
-        send(test_pid, message)
+        send(test_pid, {:poller_stub, message |> Message.to_frames})
         :ok
       end)
 
@@ -126,34 +126,132 @@ defmodule ZssService.ServiceTest do
       {:ok, _pid} = Service.start_link(config)
 
       receive do
-        message ->
-          assert message.address.verb === "UP"
+        {_, message} ->
+          assert (message |> Message.parse).address.verb === "UP"
       end
     end
 
     @tag :receive
     test "should handle matching verbs" do
-      Socket.stub(:new_socket, self())
-
-      Socket.stub(:send, fn test_pid, _msg ->
-        message = Message.new "PING", "GET"
-        message = %Message{message | payload: %{"id" => "1"}}
-        message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
-        message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
-
-        send(test_pid, message)
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
         :ok
       end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
 
       config = "ping"
       |> Config.new
       |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
 
-      {:ok, _pid} = Service.start_link(config)
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
 
       receive do
-        message ->
-          assert message.address.verb === "GET"
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).address.verb === "GET"
+      end
+    end
+
+
+    @tag :receive
+    test "should coerce >4xx errors into status 400" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_bad_request})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).status === "400"
+      end
+    end
+
+    @tag :receive
+    test "should coerce >4xx errors into an error model" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_bad_request})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      expected = %{
+        "code" => 400,
+        "developer_message" => "The request cannot be fulfilled due to bad syntax.",
+        "user_message" => "An error occured",
+        "validation_errors" => []
+      }
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).payload === expected
+      end
+    end
+
+
+    @tag :receive
+    test "should coerce non matching codes to 500" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_unknown_error})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      expected = %{
+        "developer_message" => "There was an error while processing this request. There is probably something wrong with the API server.",
+        "user_message" => "There was an error while processing this request.",
+        "code" => 500,
+        "validation_errors" => []
+      }
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).payload === expected
       end
     end
   end

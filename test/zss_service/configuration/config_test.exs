@@ -50,7 +50,7 @@ defmodule ZssService.Configuration.ConfigTest do
       fun.(payload, headers)
       receive do
         message ->
-          assert {:test_message, ^payload, _} = message
+          assert {:ok, {^payload, _}} = message
       after 2000 ->
         raise "Timeout, no message received!"
       end
@@ -69,7 +69,7 @@ defmodule ZssService.Configuration.ConfigTest do
       fun.(payload, headers)
       receive do
         message ->
-          assert {:test_message, _, ^headers} = message
+          assert {:ok, {_, ^headers}} = message
       after 2000 ->
         raise "Timeout, no message received!"
       end

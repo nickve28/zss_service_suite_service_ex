@@ -5,6 +5,7 @@ defmodule ZssService.Service do
 
   use GenServer
   alias ZssService.{Heartbeat, Message, Configuration.Config}
+  import ZssService.Error
   require Logger
 
   @not_found "404"
@@ -45,7 +46,6 @@ defmodule ZssService.Service do
     identity = sid
     |> get_identity()
     |> String.to_charlist
-
 
     opts = %{type: :dealer, linger: 0}
     socket = @socket_adapter.new_socket(opts)
@@ -110,14 +110,21 @@ defmodule ZssService.Service do
 
     case handler_fn do
       handler_fn when is_function(handler_fn) -> #is a function handler
-        {:ok, {result, result_message}} = handler_fn.(msg.payload, msg.headers)
+        {:ok, {result, result_message}} = handler_fn.(msg.payload, to_zss_message(msg))
 
-        status = Map.get(result_message, :status, "200")
+        status = result_message
+        |> Map.get(:status, "200")
+        |> String.to_integer
+
+        reply_payload = case error?(status) do
+          true -> get_error(status)
+          false -> result
+        end
 
         reply = %Message{msg |
-          payload: result,
+          payload: reply_payload,
           type: "REP",
-          status: status
+          status: status |> Integer.to_string
         }
 
         send_reply(socket, reply)
@@ -133,6 +140,8 @@ defmodule ZssService.Service do
   defp handle_msg(msg, _, _) do
     :ok #match all in case, TODO: log
   end
+
+  defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
 
   defp register(socket, sid, identity) do
     Logger.debug(fn -> "Registering with broker.." end)
