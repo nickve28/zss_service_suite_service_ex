@@ -8,7 +8,9 @@ defmodule ZssService.Service do
   import ZssService.Error
   require Logger
 
+  @success "200"
   @not_found "404"
+  @internal "500"
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
 
@@ -172,7 +174,7 @@ defmodule ZssService.Service do
          status <- get_status(result_message)
     do
       reply_payload = case error?(status) do #if wrong status is passed to success payload
-        true -> get_error(500)
+        true -> get_error(@internal |> String.to_integer)
         false -> result
       end
 
@@ -202,7 +204,7 @@ defmodule ZssService.Service do
   Get the status of the message, and default to the specified default (or "200")
   Empty strings get converted to the specified default.
   """
-  defp get_status(message, default \\ "200") do
+  defp get_status(message, default \\ @success) do
     message
     |> Map.get(:status, default)
     |> case do
@@ -217,7 +219,7 @@ defmodule ZssService.Service do
   """
   defp handle_error(error, msg) do
     {:error, {error_payload, error_message}} = error
-    status = get_status(error_message, "500")
+    status = get_status(error_message, @internal)
     error = get_error(status)
 
     %Message{msg |
