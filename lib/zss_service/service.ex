@@ -4,27 +4,13 @@ defmodule ZssService.Service do
   """
 
   use GenServer
-  alias ZssService.{Heartbeat, Message, Configuration.Config}
+  alias ZssService.{Heartbeat, Message, Configuration.Config, Service.State}
   import ZssService.Error
   require Logger
 
   @not_found "404"
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
-
-  defmodule State do
-    @moduledoc """
-    Struct to provide easy navigation through the Service's state, with appropriate defaults
-    """
-
-    defstruct [
-      config: nil,
-      identity: nil,
-      socket: nil,
-      poller: nil,
-      supervisor: nil
-    ]
-  end
 
   ### Public API
 
@@ -136,10 +122,12 @@ defmodule ZssService.Service do
     end
   end
 
+  @doc "Catch any non matched message and dont crash the process"
   defp handle_msg(msg, _, _) do
     :ok #match all in case, TODO: log
   end
 
+  @doc "Register the service to the broker by sending the SMI:UP message"
   defp register(socket, sid, identity) do
     Logger.debug(fn -> "Registering with broker.." end)
     register_msg = Message.new "SMI", "UP"
@@ -147,6 +135,7 @@ defmodule ZssService.Service do
     :ok = send_request(socket, register_msg)
   end
 
+  @doc "Initiate the heartbeat process to send heartbeat in the specified interval"
   defp initiate_heartbeat(socket, state) do
     # Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
     Task.async(fn ->
@@ -155,12 +144,14 @@ defmodule ZssService.Service do
     end)
   end
 
+  @doc "Send reply to the broker"
   defp send_reply(socket, message) do
     Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
     @socket_adapter.send(socket, message |> Message.to_frames)
   end
 
   #TODO DRY
+  @doc "Send request to the worker"
   defp send_request(socket, message) do
     Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     @socket_adapter.send(socket, message |> Message.to_frames)
@@ -173,6 +164,9 @@ defmodule ZssService.Service do
     "#{sid}##{UUID.uuid1()}"
   end
 
+  @doc """
+  Processes the result that the client specified handler returned, and create the appropriate reply message
+  """
   defp process_result(msg, handler_fn) do
     with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
          status <- get_status(result_message)
@@ -199,8 +193,15 @@ defmodule ZssService.Service do
     end
   end
 
+  @doc """
+  Convert a message to ZSS specified headers to send to clients
+  """
   defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
 
+  @doc """
+  Get the status of the message, and default to the specified default (or "200")
+  Empty strings get converted to the specified default.
+  """
   defp get_status(message, default \\ "200") do
     message
     |> Map.get(:status, default)
@@ -211,6 +212,9 @@ defmodule ZssService.Service do
     |> String.to_integer
   end
 
+  @doc """
+  Handle error replies from handler functions
+  """
   defp handle_error(error, msg) do
     {:error, {error_payload, error_message}} = error
     status = get_status(error_message, "500")
