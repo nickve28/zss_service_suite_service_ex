@@ -26,6 +26,8 @@ defmodule ZssService.Service do
     ]
   end
 
+  ### Public API
+
   @doc """
   Starts an instance with the given config. Defaults will be applied.
 
@@ -37,6 +39,17 @@ defmodule ZssService.Service do
     GenServer.start_link(__MODULE__, {config, self})
   end
 
+  @doc """
+  Cleans up open resources
+  """
+  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+    Logger.info "Worker terminating.."
+    @socket_adapter.cleanup(socket, poller)
+    Supervisor.stop(supervisor)
+    :normal
+  end
+
+  ### GenServer API
   def init({%Config{sid: sid} = config, supervisor}) do
     Logger.debug(fn -> "Initializing process with id #{inspect self()}" end)
 
@@ -78,6 +91,8 @@ defmodule ZssService.Service do
     {:noreply, state}
   end
 
+  ### Private API
+
   @doc """
   Handles heartbeat REP
   """
@@ -110,23 +125,7 @@ defmodule ZssService.Service do
 
     case handler_fn do
       handler_fn when is_function(handler_fn) -> #is a function handler
-        {:ok, {result, result_message}} = handler_fn.(msg.payload, to_zss_message(msg))
-
-        status = result_message
-        |> Map.get(:status, "200")
-        |> String.to_integer
-
-        reply_payload = case error?(status) do
-          true -> get_error(status)
-          false -> result
-        end
-
-        reply = %Message{msg |
-          payload: reply_payload,
-          type: "REP",
-          status: status |> Integer.to_string
-        }
-
+        reply = process_result(msg, handler_fn)
         send_reply(socket, reply)
       _ -> #no matching handler found. Default to 404
         reply = %Message{msg |
@@ -140,8 +139,6 @@ defmodule ZssService.Service do
   defp handle_msg(msg, _, _) do
     :ok #match all in case, TODO: log
   end
-
-  defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
 
   defp register(socket, sid, identity) do
     Logger.debug(fn -> "Registering with broker.." end)
@@ -176,13 +173,53 @@ defmodule ZssService.Service do
     "#{sid}##{UUID.uuid1()}"
   end
 
-  @doc """
-  Cleans up open resources
-  """
-  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
-    Logger.info "Worker terminating.."
-    @socket_adapter.cleanup(socket, poller)
-    Supervisor.stop(supervisor)
-    :normal
+  defp process_result(msg, handler_fn) do
+    with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
+         status <- get_status(result_message)
+    do
+      reply_payload = case error?(status) do #if wrong status is passed to success payload
+        true -> get_error(500)
+        false -> result
+      end
+
+      #TODO improve
+      is_no_content = result == nil && !error?(status)
+      status = case is_no_content do
+        true -> 204
+        _ -> status
+      end
+
+      %Message{msg |
+        payload: reply_payload,
+        type: "REP",
+        status: status |> Integer.to_string
+      }
+    else
+      err -> handle_error(err, msg)
+    end
+  end
+
+  defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
+
+  defp get_status(message, default \\ "200") do
+    message
+    |> Map.get(:status, default)
+    |> case do
+      "" -> default
+      code -> code
+    end
+    |> String.to_integer
+  end
+
+  defp handle_error(error, msg) do
+    {:error, {error_payload, error_message}} = error
+    status = get_status(error_message, "500")
+    error = get_error(status)
+
+    %Message{msg |
+      payload: error,
+      status: status |> Integer.to_string,
+      type: "REP"
+    }
   end
 end
