@@ -1,4 +1,4 @@
-defmodule ZssService.Heartbeat do
+defmodule ZssService.Service.Heartbeat do
   use GenServer
 
   @moduledoc """
@@ -35,19 +35,15 @@ defmodule ZssService.Heartbeat do
     heartbeat_msg = Message.new "SMI", "HEARTBEAT"
 
     heartbeat_msg = %Message{heartbeat_msg | identity: identity, payload: sid}
-    :ok = send_request(socket, heartbeat_msg)
 
+    Logger.debug(fn ->
+      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    end)
+    :ok = @socket_adapter.send(socket, heartbeat_msg |> Message.to_frames)
+
+    #Prepare next heartbeat
     Process.send_after(self(), {:heartbeat, socket, config, identity}, heartbeat)
 
     {:noreply, state}
-  end
-
-  #TODO DRY
-  defp send_request(socket, message) do
-    Logger.debug(fn ->
-      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb} from #{inspect self()}"
-    end)
-
-    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 end
