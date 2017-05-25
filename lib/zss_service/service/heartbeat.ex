@@ -9,7 +9,6 @@ defmodule ZssService.Service.Heartbeat do
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
 
   alias ZssService.Message
-  import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
   @doc """
@@ -36,8 +35,13 @@ defmodule ZssService.Service.Heartbeat do
     heartbeat_msg = Message.new "SMI", "HEARTBEAT"
 
     heartbeat_msg = %Message{heartbeat_msg | identity: identity, payload: sid}
-    :ok = send_request(socket, heartbeat_msg)
 
+    Logger.debug(fn ->
+      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+    end)
+    :ok = @socket_adapter.send(socket, heartbeat_msg |> Message.to_frames)
+
+    #Prepare next heartbeat
     Process.send_after(self(), {:heartbeat, socket, config, identity}, heartbeat)
 
     {:noreply, state}
