@@ -65,7 +65,6 @@ defmodule ZssService.Service do
     {:ok, state}
   end
 
-  #TODO: make is_frames macro
   def handle_info({_poller, msg}, %{config: config, socket: socket, supervisor: sup} = state) when is_list(msg) do
     handle_msg(msg |> Message.parse, socket, state)
 
@@ -173,10 +172,7 @@ defmodule ZssService.Service do
     with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
          status <- get_status(result_message)
     do
-      reply_payload = case error?(status) do #if wrong status is passed to success payload
-        true -> get_error(@internal |> String.to_integer)
-        false -> result
-      end
+      reply_payload = get_reply_payload(result, status)
 
       #TODO improve
       is_no_content = result == nil && !error?(status)
@@ -193,6 +189,14 @@ defmodule ZssService.Service do
     else
       err -> handle_error(err, msg)
     end
+  end
+
+  defp get_reply_payload(result, true) do
+    get_error(@internal |> String.to_integer)
+  end
+
+  defp get_reply_payload(result, _) do
+    result
   end
 
   @doc """
