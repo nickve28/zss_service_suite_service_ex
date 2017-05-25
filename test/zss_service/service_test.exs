@@ -158,9 +158,89 @@ defmodule ZssService.ServiceTest do
       end
     end
 
+    @tag :receive
+    test "should allow custom success response codes" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_accepted})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).status === "202"
+      end
+    end
 
     @tag :receive
-    test "should coerce >4xx errors into status 400" do
+    test "should return 500 if a wrong success code is passed in success response" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_invalid_status})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).status === "500"
+      end
+    end
+
+    @tag :receive
+    test "should return 204 if no content is returned" do
+      Socket.stub(:new_socket, self()) #Send message to this process
+      Socket.stub(:send, fn receiver, message ->
+        send(receiver, {:message, message})
+        :ok
+      end)
+
+      message = Message.new "PING", "GET"
+      message = %Message{message | payload: %{"id" => "1"}}
+      message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
+      message = %Message{message | identity: "SUBSCRIPTION#" <> message.rid}
+
+      config = "ping"
+      |> Config.new
+      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_no_content})
+
+      {:ok, instance} = Service.start_link(config)
+
+      send(instance, {:msg, message |> Message.to_frames})
+
+      receive do
+        {:message, [_, _, "REP" | _] = message} ->
+          assert (message |> Message.parse).status === "204"
+      end
+    end
+
+    @tag :receive
+    test "should coerce 400 errors into status 400" do
       Socket.stub(:new_socket, self()) #Send message to this process
       Socket.stub(:send, fn receiver, message ->
         send(receiver, {:message, message})

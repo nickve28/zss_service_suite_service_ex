@@ -4,27 +4,17 @@ defmodule ZssService.Service do
   """
 
   use GenServer
-  alias ZssService.{Heartbeat, Message, Configuration.Config}
+  alias ZssService.{Heartbeat, Message, Configuration.Config, Service.State}
   import ZssService.Error
   require Logger
 
+  @success "200"
   @not_found "404"
+  @internal "500"
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
 
-  defmodule State do
-    @moduledoc """
-    Struct to provide easy navigation through the Service's state, with appropriate defaults
-    """
-
-    defstruct [
-      config: nil,
-      identity: nil,
-      socket: nil,
-      poller: nil,
-      supervisor: nil
-    ]
-  end
+  ### Public API
 
   @doc """
   Starts an instance with the given config. Defaults will be applied.
@@ -37,6 +27,17 @@ defmodule ZssService.Service do
     GenServer.start_link(__MODULE__, {config, self})
   end
 
+  @doc """
+  Cleans up open resources
+  """
+  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+    Logger.info "Worker terminating.."
+    @socket_adapter.cleanup(socket, poller)
+    Supervisor.stop(supervisor)
+    :normal
+  end
+
+  ### GenServer API
   def init({%Config{sid: sid} = config, supervisor}) do
     Logger.debug(fn -> "Initializing process with id #{inspect self()}" end)
 
@@ -64,7 +65,6 @@ defmodule ZssService.Service do
     {:ok, state}
   end
 
-  #TODO: make is_frames macro
   def handle_info({_poller, msg}, %{config: config, socket: socket, supervisor: sup} = state) when is_list(msg) do
     handle_msg(msg |> Message.parse, socket, state)
 
@@ -77,6 +77,8 @@ defmodule ZssService.Service do
     Logger.warn("Unexpected message found in handle_info: #{inspect msg}")
     {:noreply, state}
   end
+
+  ### Private API
 
   @doc """
   Handles heartbeat REP
@@ -110,23 +112,7 @@ defmodule ZssService.Service do
 
     case handler_fn do
       handler_fn when is_function(handler_fn) -> #is a function handler
-        {:ok, {result, result_message}} = handler_fn.(msg.payload, to_zss_message(msg))
-
-        status = result_message
-        |> Map.get(:status, "200")
-        |> String.to_integer
-
-        reply_payload = case error?(status) do
-          true -> get_error(status)
-          false -> result
-        end
-
-        reply = %Message{msg |
-          payload: reply_payload,
-          type: "REP",
-          status: status |> Integer.to_string
-        }
-
+        reply = process_result(msg, handler_fn)
         send_reply(socket, reply)
       _ -> #no matching handler found. Default to 404
         reply = %Message{msg |
@@ -137,12 +123,12 @@ defmodule ZssService.Service do
     end
   end
 
+  @doc "Catch any non matched message and dont crash the process"
   defp handle_msg(msg, _, _) do
     :ok #match all in case, TODO: log
   end
 
-  defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
-
+  @doc "Register the service to the broker by sending the SMI:UP message"
   defp register(socket, sid, identity) do
     Logger.debug(fn -> "Registering with broker.." end)
     register_msg = Message.new "SMI", "UP"
@@ -150,6 +136,7 @@ defmodule ZssService.Service do
     :ok = send_request(socket, register_msg)
   end
 
+  @doc "Initiate the heartbeat process to send heartbeat in the specified interval"
   defp initiate_heartbeat(socket, state) do
     # Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
     Task.async(fn ->
@@ -158,12 +145,14 @@ defmodule ZssService.Service do
     end)
   end
 
+  @doc "Send reply to the broker"
   defp send_reply(socket, message) do
     Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
     @socket_adapter.send(socket, message |> Message.to_frames)
   end
 
   #TODO DRY
+  @doc "Send request to the worker"
   defp send_request(socket, message) do
     Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
     @socket_adapter.send(socket, message |> Message.to_frames)
@@ -177,12 +166,70 @@ defmodule ZssService.Service do
   end
 
   @doc """
-  Cleans up open resources
+  Processes the result that the client specified handler returned, and create the appropriate reply message
   """
-  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
-    Logger.info "Worker terminating.."
-    @socket_adapter.cleanup(socket, poller)
-    Supervisor.stop(supervisor)
-    :normal
+  defp process_result(msg, handler_fn) do
+    with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
+         status <- get_status(result_message)
+    do
+      reply_payload = get_reply_payload(result, status)
+
+      #TODO improve
+      is_no_content = result == nil && !error?(status)
+      status = case is_no_content do
+        true -> 204
+        _ -> status
+      end
+
+      %Message{msg |
+        payload: reply_payload,
+        type: "REP",
+        status: status |> Integer.to_string
+      }
+    else
+      err -> handle_error(err, msg)
+    end
+  end
+
+  defp get_reply_payload(result, true) do
+    get_error(@internal |> String.to_integer)
+  end
+
+  defp get_reply_payload(result, _) do
+    result
+  end
+
+  @doc """
+  Convert a message to ZSS specified headers to send to clients
+  """
+  defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
+
+  @doc """
+  Get the status of the message, and default to the specified default (or "200")
+  Empty strings get converted to the specified default.
+  """
+  defp get_status(message, default \\ @success) do
+    message
+    |> Map.get(:status, default)
+    |> case do
+      "" -> default
+      code -> code
+    end
+    |> String.to_integer
+  end
+
+  @doc """
+  Handle error replies from handler functions
+  """
+  defp handle_error(error, msg) do
+    {:error, {error_payload, error_message}} = error
+    status = get_status(error_message, @internal)
+    error = get_error(status)
+
+    %Message{msg |
+      payload: error,
+      status: status |> Integer.to_string,
+      type: "REP"
+    }
   end
 end
