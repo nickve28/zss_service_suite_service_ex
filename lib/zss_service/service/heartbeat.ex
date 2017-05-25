@@ -1,4 +1,4 @@
-defmodule ZssService.Heartbeat do
+defmodule ZssService.Service.Heartbeat do
   use GenServer
 
   @moduledoc """
@@ -9,6 +9,7 @@ defmodule ZssService.Heartbeat do
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
 
   alias ZssService.Message
+  import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
   @doc """
@@ -40,14 +41,5 @@ defmodule ZssService.Heartbeat do
     Process.send_after(self(), {:heartbeat, socket, config, identity}, heartbeat)
 
     {:noreply, state}
-  end
-
-  #TODO DRY
-  defp send_request(socket, message) do
-    Logger.debug(fn ->
-      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb} from #{inspect self()}"
-    end)
-
-    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 end

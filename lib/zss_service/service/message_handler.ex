@@ -5,9 +5,9 @@ defmodule ZssService.Service.MessageHandler do
 
   alias ZssService.Message
   import ZssService.Error
+  import ZssService.Service.Util, only: [send_reply: 2]
   require Logger
 
-  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
 
   @success "200"
@@ -127,11 +127,5 @@ defmodule ZssService.Service.MessageHandler do
       status: status |> Integer.to_string,
       type: "REP"
     }
-  end
-
-  @doc "Send reply to the broker"
-  defp send_reply(socket, message) do
-    Logger.info "Sending reply with id #{message.rid} with code #{message.status} to #{message.identity}"
-    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 end

@@ -4,9 +4,9 @@ defmodule ZssService.Service do
   """
 
   use GenServer
-  alias ZssService.{Heartbeat, Message, Configuration.Config}
-  alias ZssService.Service.{State, MessageHandler}
-  import ZssService.Error
+  alias ZssService.{Message, Configuration.Config}
+  alias ZssService.Service.{State, MessageHandler, Heartbeat}
+  import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
   @socket_adapter Application.get_env(:zss_service, :socket_adapter)
@@ -58,12 +58,12 @@ defmodule ZssService.Service do
     @socket_adapter.connect(socket, identity, state.config.broker)
 
     register(socket, sid, identity)
-    initiate_heartbeat(socket, state)
+    initiate_heartbeat(state)
 
     {:ok, state}
   end
 
-  def handle_info({_poller, msg}, %{config: config, socket: socket, supervisor: sup} = state) when is_list(msg) do
+  def handle_info({_poller, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
     MessageHandler.handle_msg(msg |> Message.parse, socket, state)
 
     {:noreply, state}
@@ -85,19 +85,12 @@ defmodule ZssService.Service do
   end
 
   @doc "Initiate the heartbeat process to send heartbeat in the specified interval"
-  defp initiate_heartbeat(socket, state) do
+  defp initiate_heartbeat(state) do
     # Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
     Task.async(fn ->
       Logger.debug(fn -> "Starting heartbeat in process #{inspect self()} with heartbeat #{state.config.heartbeat}" end)
       @service_supervisor.start_child(state.supervisor, {Heartbeat, :start_link, [state.socket, state.config, state.identity]})
     end)
-  end
-
-  #TODO DRY
-  @doc "Send request to the worker"
-  defp send_request(socket, message) do
-    Logger.info "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
-    @socket_adapter.send(socket, message |> Message.to_frames)
   end
 
   @doc """
