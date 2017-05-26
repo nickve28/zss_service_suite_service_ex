@@ -6,7 +6,8 @@ config :logger,
 
 config :zss_service,
   socket_adapter: ZssService.Adapters.Socket,
-  service_supervisor: ZssService.ServiceSupervisor
+  service_supervisor: ZssService.ServiceSupervisor,
+  datetime_module: DateTime
 
 config :zss_service,
   errors: %{

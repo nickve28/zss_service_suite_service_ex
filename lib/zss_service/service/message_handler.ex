@@ -4,6 +4,7 @@ defmodule ZssService.Service.MessageHandler do
   """
 
   alias ZssService.Message
+  alias ZssService.Service.Timer
   import ZssService.Error
   import ZssService.Service.Util, only: [send_reply: 2]
   require Logger
@@ -66,7 +67,9 @@ defmodule ZssService.Service.MessageHandler do
   Processes the result that the client specified handler returned, and create the appropriate reply message
   """
   defp process_result(msg, handler_fn) do
-    with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
+    start_time = Timer.start
+
+    message = with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
          status <- get_status(result_message)
     do
       reply_payload = get_reply_payload(result, status)
@@ -85,6 +88,11 @@ defmodule ZssService.Service.MessageHandler do
     else
       err -> handle_error(err, msg)
     end
+
+    response_time = Timer.stop(start_time)
+    %{headers: headers} = message
+    new_headers = Map.put(headers, "response-time", response_time)
+    %Message{message | headers: new_headers}
   end
 
   defp get_reply_payload(_result, true) do
