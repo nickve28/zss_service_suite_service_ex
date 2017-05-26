@@ -1,4 +1,4 @@
-defmodule ZssService.ServiceTest do
+defmodule ZssService.Service.MessageHandlerTest do
   @moduledoc false
 
   use ExUnit.Case, async: false
