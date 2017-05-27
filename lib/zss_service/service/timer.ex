@@ -16,7 +16,7 @@ defmodule ZssService.Service.Timer do
   """
   def start do
     @datetime.utc_now()
-    |> DateTime.to_unix(:nanosecond)
+    |> DateTime.to_unix(:nanoseconds)
   end
 
   @doc """
@@ -33,7 +33,7 @@ defmodule ZssService.Service.Timer do
   """
   def stop(time) do
     current_time = @datetime.utc_now()
-    |> DateTime.to_unix(:nanosecond)
+    |> DateTime.to_unix(:nanoseconds)
 
     diff = current_time - time
     diff = diff / @to_millis
