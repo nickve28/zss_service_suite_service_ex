@@ -37,7 +37,7 @@ defmodule ZssService.Service.Heartbeat do
     heartbeat_msg = %Message{heartbeat_msg | identity: identity, payload: sid}
 
     Logger.debug(fn ->
-      "Sending #{message.identity} with id #{message.rid} to #{message.address.sid}:#{message.address.sversion}##{message.address.verb}"
+      "Sending #{heartbeat.identity} with id #{heartbeat.rid} to #{heartbeat.address.sid}:#{heartbeat.address.sversion}##{heartbeat.address.verb}"
     end)
     :ok = @socket_adapter.send(socket, heartbeat_msg |> Message.to_frames)
 

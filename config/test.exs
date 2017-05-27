@@ -5,4 +5,5 @@ config :logger,
 
 config :zss_service,
   socket_adapter: ZssService.Mocks.Adapters.Socket,
-  service_supervisor: ZssService.Mocks.ServiceSupervisor
+  service_supervisor: ZssService.Mocks.ServiceSupervisor,
+  datetime_module: ZssService.Mocks.DateTime
