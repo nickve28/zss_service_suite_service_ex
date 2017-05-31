@@ -11,9 +11,10 @@ defmodule ZssService.Service.MessageHandler do
 
   @service_supervisor Application.get_env(:zss_service, :service_supervisor)
 
-  @success "200"
-  @not_found "404"
-  @internal "500"
+  @success 200
+  @no_content 204
+  @not_found 404
+  @internal 500
 
   @doc """
   Handles heartbeat REP
@@ -51,7 +52,7 @@ defmodule ZssService.Service.MessageHandler do
         send_reply(socket, reply)
       _ -> #no matching handler found. Default to 404
         reply = %Message{msg |
-          status: @not_found,
+          status: @not_found |> Integer.to_string,
           type: "REP"
         }
         send_reply(socket, reply)
@@ -69,14 +70,21 @@ defmodule ZssService.Service.MessageHandler do
   defp process_result(msg, handler_fn) do
     start_time = Timer.start
 
-    message = with {:ok, {result, result_message}} <- handler_fn.(msg.payload, to_zss_message(msg)),
-         status <- get_status(result_message)
+    worker_reply = case handler_fn.(msg.payload, to_zss_message(msg)) do
+      {:ok, result} -> {:ok, result, @success}
+      {:ok, result, code} -> {:ok, result, code}
+      {:error, result} -> {:error, result, @internal}
+      {:error, result, code} -> {:error, result, code}
+      _ -> {:error, %{}, @internal}
+    end
+
+    message = with {:ok, result, status} <- worker_reply
     do
       reply_payload = get_reply_payload(result, status)
 
       is_no_content = result == nil && !error?(status)
       status = case is_no_content do
-        true -> 204
+        true -> @no_content
         _ -> status
       end
 
@@ -109,30 +117,24 @@ defmodule ZssService.Service.MessageHandler do
   defp to_zss_message(%Message{headers: headers}), do: %{headers: headers}
 
   @doc """
-  Get the status of the message, and default to the specified default (or "200")
-  Empty strings get converted to the specified default.
-  """
-  defp get_status(message, default \\ @success) do
-    message
-    |> Map.get(:status, default)
-    |> case do
-      "" -> default
-      code -> code
-    end
-    |> String.to_integer
-  end
-
-  @doc """
   Handle error replies from handler functions
   """
-  defp handle_error(error, msg) do
-    {:error, {_error_payload, error_message}} = error
-    status = get_status(error_message, @internal)
-    error = get_error(status)
+  defp handle_error({:error, result, status}, msg) do
+    error = get_error(status, result)
 
     %Message{msg |
       payload: error,
       status: status |> Integer.to_string,
+      type: "REP"
+    }
+  end
+
+  defp handle_error(_, msg) do
+    error = get_error(@internal)
+
+    %Message{msg |
+      payload: error,
+      status: @internal |> Integer.to_string,
       type: "REP"
     }
   end

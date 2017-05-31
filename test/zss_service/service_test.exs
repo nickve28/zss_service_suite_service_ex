@@ -128,6 +128,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {_, message} ->
           assert (message |> Message.parse).address.verb === "UP"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -155,6 +157,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).address.verb === "GET"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -182,6 +186,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).status === "202"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -209,6 +215,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).status === "500"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -236,6 +244,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).status === "204"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -263,6 +273,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).status === "400"
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -297,6 +309,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).payload === expected
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
 
@@ -332,6 +346,8 @@ defmodule ZssService.ServiceTest do
       receive do
         {:message, [_, _, "REP" | _] = message} ->
           assert (message |> Message.parse).payload === expected
+      after 2000 ->
+        raise "Timeout exceeded"
       end
     end
   end
