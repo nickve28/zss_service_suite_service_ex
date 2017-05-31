@@ -32,10 +32,10 @@ T.B.D.
 In order to create service workers, you start by creating a configuration struct. This could look like the following.
 
 ```elixir
-config = ZssService.get_instance %{sid: "PING", broker: "tcp://127.0.0.1:7776", timeout: 1500}
+config = ZssService.get_instance %{sid: "PING", broker: "tcp://127.0.0.1:7776", heartbeat: 1500}
 ```
 
-broker and timeout are optional properties and will default to "tcp://127.0.0.1:7776" and 1000 respectively.
+broker and heartbeat are optional properties and will default to "tcp://127.0.0.1:7776" and 1000 respectively.
 
 After creating the configuration, you can add verbs/routes the following way
 
@@ -46,7 +46,7 @@ config = ZssService.add_verb(config, {"LIST", MyModule, :my_fun})
 Chaining the previous operations using pipes is possible.
 
 ```elixir
-config = ZssService.get_instance %{sid: "PING", broker: "tcp://127.0.0.1:7776", timeout: 1500}
+config = ZssService.get_instance %{sid: "PING", broker: "tcp://127.0.0.1:7776", hearbeat: 1500}
 |> ZssService.add_verb({"LIST", MyModule, :my_fun})
 |> ZssService.add_verb({"GET", MyModule, :my_other_fun})
 ```
