@@ -50,26 +50,7 @@ defmodule ZssService.Configuration.ConfigTest do
       fun.(payload, headers)
       receive do
         message ->
-          assert {:ok, {^payload, _}} = message
-      after 2000 ->
-        raise "Timeout, no message received!"
-      end
-    end
-
-    test "calling the handler should send headers" do
-      config = "ping"
-      |> Config.new
-      |> Config.add_handler("get", {ZssService.Mocks.TestSender, :send_me})
-
-      %{handlers: %{"GET" => fun}} = config
-
-      payload = %{"id" => 1}
-      headers = %{"X-REQUEST-ID" => "123"}
-
-      fun.(payload, headers)
-      receive do
-        message ->
-          assert {:ok, {_, ^headers}} = message
+          assert {:ok, ^payload} = message
       after 2000 ->
         raise "Timeout, no message received!"
       end

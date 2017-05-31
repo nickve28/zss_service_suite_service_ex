@@ -55,8 +55,8 @@ defmodule Examples.SampleHandler do
     |> VerifyPayload.new
     |> verify_access
     |> case do
-      {:ok, result} -> {:ok, {result, message}}
-      {:error, :unauthorized} -> {:ok, {%{code: 403, userMessage: "Forbidden", developerMessage: "Forbidden"}, Map.put(message, :status, "403")}}
+      {:ok, result} -> {:ok, result, message}
+      {:error, :unauthorized} -> {:error, %{code: 403, userMessage: "Forbidden", developerMessage: "Forbidden"}, 403}
     end
   end
 
