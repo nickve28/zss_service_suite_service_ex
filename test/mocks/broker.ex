@@ -4,21 +4,15 @@ defmodule ZssService.Mocks.Broker do
   """
 
   def get_instance(%{address: address}) do
-    {:ok, context} = :czmq.start_link
-    :ok = :czmq.zctx_set_linger(context, 0)
-
-    broker = :czmq.zsocket_new(context, :router)
-    {:ok, _port} = :czmq.zsocket_bind(broker, address)
-
-    {:ok, broker}
+    {:ok, socket} = :chumak.socket(:router)
+    {:ok, _peer} = :chumak.bind(socket, :tcp, 'localhost', 7776)
+    {:ok, socket}
   end
 
   def receive(broker) do
-    :timer.sleep(50)
-    case :czmq.zframe_recv_all(broker) do
-      :error -> :error
-      {:ok, [_identity | message]} -> message
-    end
+    {:ok, msg} = :chumak.recv_multipart(broker)
+    [_identity | message] = msg
+    message
   end
 
   def receive(broker, type) do
@@ -32,10 +26,11 @@ defmodule ZssService.Mocks.Broker do
 
   def send(broker, [identity | _] = frames) do
     payload = [identity | frames]
-    :ok = :czmq.zsocket_send_all(broker, payload)
+    :ok = :chumak.send_multipart(broker, payload)
   end
 
   def cleanup(router) do
-    :czmq.zsocket_destroy(router)
+    :chumak.stop(router)
+    #:czmq.zsocket_destroy(router)
   end
 end

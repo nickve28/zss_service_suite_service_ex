@@ -5,7 +5,7 @@ defmodule ZssService.Service do
 
   use GenServer
   alias ZssService.{Message, Configuration.Config}
-  alias ZssService.Service.{State, MessageHandler, Heartbeat}
+  alias ZssService.Service.{State, MessageHandler, Heartbeat, Responder}
   import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
@@ -28,9 +28,9 @@ defmodule ZssService.Service do
   @doc """
   Cleans up open resources
   """
-  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+  def terminate(_reason, %{socket: socket, supervisor: supervisor}) do
     Logger.info "Worker terminating.."
-    @socket_adapter.cleanup(socket, poller)
+    @socket_adapter.cleanup(socket)
     Supervisor.stop(supervisor)
     :normal
   end
@@ -44,26 +44,23 @@ defmodule ZssService.Service do
 
     identity = sid
     |> get_identity()
-    |> String.to_charlist
 
-    opts = %{type: :dealer, linger: 0}
+    opts = %{type: :dealer, linger: 0, identity: identity}
     socket = @socket_adapter.new_socket(opts)
 
-    #Read about polling and erlang C ports as why I did this
-    {:ok, poller} = @socket_adapter.link_to_poller(socket)
-
-    state = %State{config: config, socket: socket, poller: poller, supervisor: supervisor, identity: identity}
+    state = %State{config: config, socket: socket, supervisor: supervisor, identity: identity}
 
     Logger.debug(fn -> "Assuming identity #{identity}" end)
     @socket_adapter.connect(socket, identity, state.config.broker)
 
     register(socket, sid, identity)
     initiate_heartbeat(state)
+    start_responder(state.supervisor, state.socket)
 
     {:ok, state}
   end
 
-  def handle_info({_poller, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
+  def handle_info({:ok, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
     MessageHandler.handle_msg(msg |> Message.parse, socket, state)
 
     {:noreply, state}
@@ -90,6 +87,17 @@ defmodule ZssService.Service do
     Task.async(fn ->
       Logger.debug(fn -> "Starting heartbeat in process #{inspect self()} with heartbeat #{state.config.heartbeat}" end)
       @service_supervisor.start_child(state.supervisor, {Heartbeat, :start_link, [state.socket, state.config, state.identity]})
+    end)
+  end
+
+  @doc """
+  Starts the process to get responses from the socket, and forward them to this process
+  """
+  defp start_responder(supervisor, socket) do
+    this = self()
+    Task.async(fn ->
+      Logger.debug(fn -> "Starting responder in process #{inspect self()}" end)
+      @service_supervisor.start_child(supervisor, {Responder, :start_link, [socket, this]})
     end)
   end
 

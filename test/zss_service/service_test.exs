@@ -90,7 +90,7 @@ defmodule ZssService.ServiceTest do
         message = %ZssService.Message{message | type: "REP"}
         message = %ZssService.Message{message | headers: %{"X-REQUEST-ID" => "123"}}
 
-        send(test_pid, {:poller_stub, message |> Message.to_frames})
+        send(test_pid, {:ok, message |> Message.to_frames})
         :ok
       end)
 
@@ -115,7 +115,7 @@ defmodule ZssService.ServiceTest do
         message = %Message{message | type: "REP"}
         message = %Message{message | headers: %{"X-REQUEST-ID" => "123"}}
 
-        send(test_pid, {:poller_stub, message |> Message.to_frames})
+        send(test_pid, {:ok, message |> Message.to_frames})
         :ok
       end)
 
@@ -152,7 +152,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       receive do
         {:message, [_, _, "REP" | _] = message} ->
@@ -181,7 +181,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       receive do
         {:message, [_, _, "REP" | _] = message} ->
@@ -210,7 +210,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       receive do
         {:message, [_, _, "REP" | _] = message} ->
@@ -239,7 +239,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       receive do
         {:message, [_, _, "REP" | _] = message} ->
@@ -268,7 +268,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       receive do
         {:message, [_, _, "REP" | _] = message} ->
@@ -297,7 +297,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       expected = %{
         "code" => 400,
@@ -334,7 +334,7 @@ defmodule ZssService.ServiceTest do
 
       {:ok, instance} = Service.start_link(config)
 
-      send(instance, {:msg, message |> Message.to_frames})
+      send(instance, {:ok, message |> Message.to_frames})
 
       expected = %{
         "developer_message" => "There was an error while processing this request. There is probably something wrong with the API server.",

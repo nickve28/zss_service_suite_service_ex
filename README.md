@@ -18,7 +18,9 @@ In order to use ZeroMQ with erlang, you have 3 options.
 2. Use a port that acts as an intermediate between the ZeroMQ czmq libraries and Erlang. The consequence is you need to poll the messages into Erlang/Elixir. This can cause a slight increase in latency.
 3. Use a full Erlang based ZMQ implementation.
 
-The second option has been chosen for this project, the slight increase in latency is worth the tradeoff compared to losing the reliabily of the Beam VM.
+~~The second option has been chosen for this project, the slight increase in latency is worth the tradeoff compared to losing the reliabily of the Beam VM.~~
+
+The third option is chosen for this project. It means that the raw throughput will be worse than a full C implementation, but we maintain the stability of the erlang VM and do not need to resort to polling or other mechanisms.
 
 This library is intended for use when you want to add an Elixir/Erlang based service into your existing ZSS stack using the official Ruby/NodeJS clients and workers.
 

@@ -92,23 +92,23 @@ defmodule ZssService.Message do
   iex> message = %ZssService.Message{message | identity: "SMI:1", payload: "MYSERVICE:2"}
   iex> frames = ZssService.Message.to_frames(message)
   iex> ["SMI:1", "ZSS:0.0", "REQ", ^rid, encoded_address, encoded_headers, "", encoded_payload] = frames
-  iex> Msgpax.pack!(Map.from_struct(message.address)) === encoded_address
+  iex> Msgpax.pack!(Map.from_struct(message.address), iodata: false) === encoded_address
   true
-  iex> Msgpax.pack!(message.headers) === encoded_headers
+  iex> Msgpax.pack!(message.headers, iodata: false) === encoded_headers
   true
-  iex> Msgpax.pack!(message.payload) === encoded_payload
+  iex> Msgpax.pack!(message.payload, iodata: false) === encoded_payload
   true
   """
   def to_frames(message) do
     [
-      message.identity || '',
+      message.identity || "", #TODO CHANGE IN SERVICE LAYER
       message.protocol,
       message.type,
       message.rid,
-      pack!(Map.from_struct(message.address)),
-      pack!(message.headers),
+      pack!(Map.from_struct(message.address), iodata: false),
+      pack!(message.headers, iodata: false),
       message.status, #todo, investigate why integer / nil fails
-      pack!(message.payload)
+      pack!(message.payload, iodata: false)
     ]
   end
 
