@@ -101,14 +101,14 @@ defmodule ZssService.Message do
   """
   def to_frames(message) do
     [
-      message.identity || '',
+      message.identity |> String.Chars.to_string || "", #TODO CHANGE IN SERVICE LAYER
       message.protocol,
       message.type,
       message.rid,
-      pack!(Map.from_struct(message.address)),
-      pack!(message.headers),
+      pack!(Map.from_struct(message.address), iodata: false),
+      pack!(message.headers, iodata: false),
       message.status, #todo, investigate why integer / nil fails
-      pack!(message.payload)
+      pack!(message.payload, iodata: false)
     ]
   end
 

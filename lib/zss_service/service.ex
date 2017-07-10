@@ -46,13 +46,13 @@ defmodule ZssService.Service do
     |> get_identity()
     |> String.to_charlist
 
-    opts = %{type: :dealer, linger: 0}
+    opts = %{type: :dealer, linger: 0, identity: identity}
     socket = @socket_adapter.new_socket(opts)
 
     #Read about polling and erlang C ports as why I did this
-    {:ok, poller} = @socket_adapter.link_to_poller(socket)
+    #{:ok, poller} = @socket_adapter.link_to_poller(socket)
 
-    state = %State{config: config, socket: socket, poller: poller, supervisor: supervisor, identity: identity}
+    state = %State{config: config, socket: socket, poller: nil, supervisor: supervisor, identity: identity}
 
     Logger.debug(fn -> "Assuming identity #{identity}" end)
     @socket_adapter.connect(socket, identity, state.config.broker)
