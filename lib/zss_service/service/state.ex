@@ -7,7 +7,6 @@ defmodule ZssService.Service.State do
     config: nil,
     identity: nil,
     socket: nil,
-    poller: nil,
     supervisor: nil
   ]
 end

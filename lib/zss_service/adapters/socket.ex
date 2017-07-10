@@ -23,16 +23,11 @@ defmodule ZssService.Adapters.Socket do
   @doc """
   Links the socket to the C Port to get messages
   """
-  def link_to_poller(socket) do
-    #:czmq.subscribe_link(socket, [poll_interval: 50])
-  end
 
   @doc """
   Set identity and connect socket to the server
   """
   def connect(socket, identity, server) do
-    #:ok = :czmq.zsocket_set_identity(socket, identity)
-    #:ok = :czmq.zsocket_connect(socket, server)
     ["tcp", broker, port] = String.split(server, ":")
     {:ok, _peer_pid} = :chumak.connect(socket, :tcp, '127.0.0.1', 7776)
   end
@@ -41,10 +36,7 @@ defmodule ZssService.Adapters.Socket do
   Send a message to the server
   """
   def send(socket, message) do
-    # [identity | _] = message
-    # :chumak.send_multipart(socket, [identity | message])
     :chumak.send_multipart(socket, message)
-    # :czmq.zsocket_send_all(socket, message)
   end
 
   def receive(socket) do
@@ -55,9 +47,7 @@ defmodule ZssService.Adapters.Socket do
   Cleanup resources: Poller and socket
   """
   def cleanup(socket, poller) do
-    # :czmq.zsocket_destroy(socket)
-    # :czmq.unsubscribe(poller)
-
+    :chumak.stop(socket)
     :ok
   end
 end

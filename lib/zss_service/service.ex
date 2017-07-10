@@ -28,9 +28,9 @@ defmodule ZssService.Service do
   @doc """
   Cleans up open resources
   """
-  def terminate(_reason, %{socket: socket, supervisor: supervisor, poller: poller}) do
+  def terminate(_reason, %{socket: socket, supervisor: supervisor}) do
     Logger.info "Worker terminating.."
-    @socket_adapter.cleanup(socket, poller)
+    @socket_adapter.cleanup(socket)
     Supervisor.stop(supervisor)
     :normal
   end
@@ -48,10 +48,7 @@ defmodule ZssService.Service do
     opts = %{type: :dealer, linger: 0, identity: identity}
     socket = @socket_adapter.new_socket(opts)
 
-    #Read about polling and erlang C ports as why I did this
-    #{:ok, poller} = @socket_adapter.link_to_poller(socket)
-
-    state = %State{config: config, socket: socket, poller: nil, supervisor: supervisor, identity: identity}
+    state = %State{config: config, socket: socket, supervisor: supervisor, identity: identity}
 
     Logger.debug(fn -> "Assuming identity #{identity}" end)
     @socket_adapter.connect(socket, identity, state.config.broker)
