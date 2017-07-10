@@ -46,7 +46,7 @@ defmodule ZssService.Adapters.Socket do
   @doc """
   Cleanup resources: Poller and socket
   """
-  def cleanup(socket, poller) do
+  def cleanup(socket) do
     :chumak.stop(socket)
     :ok
   end
