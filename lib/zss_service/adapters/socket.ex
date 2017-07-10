@@ -16,7 +16,7 @@ defmodule ZssService.Adapters.Socket do
   Returns: Socket
   """
   def new_socket(%{linger: linger, type: type, identity: identity}) do
-    {:ok, socket} = :chumak.socket(:dealer, identity)
+    {:ok, socket} = :chumak.socket(:dealer, identity |> String.to_charlist)
     socket
   end
 
@@ -45,6 +45,10 @@ defmodule ZssService.Adapters.Socket do
     # :chumak.send_multipart(socket, [identity | message])
     :chumak.send_multipart(socket, message)
     # :czmq.zsocket_send_all(socket, message)
+  end
+
+  def receive(socket) do
+    :chumak.recv_multipart(socket)
   end
 
   @doc """

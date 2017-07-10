@@ -44,7 +44,6 @@ defmodule ZssService.Service do
 
     identity = sid
     |> get_identity()
-    |> String.to_charlist
 
     opts = %{type: :dealer, linger: 0, identity: identity}
     socket = @socket_adapter.new_socket(opts)
@@ -60,10 +59,21 @@ defmodule ZssService.Service do
     register(socket, sid, identity)
     initiate_heartbeat(state)
 
+    this = self
+    spawn(fn ->
+      ZssService.Service.loop(socket, this)
+    end)
+
     {:ok, state}
   end
 
-  def handle_info({_poller, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
+  def loop(socket, pid) do
+    msg = :chumak.recv_multipart(socket)
+    send(pid, msg)
+    loop(socket, pid)
+  end
+
+  def handle_info({:ok, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
     MessageHandler.handle_msg(msg |> Message.parse, socket, state)
 
     {:noreply, state}

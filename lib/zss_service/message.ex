@@ -101,7 +101,7 @@ defmodule ZssService.Message do
   """
   def to_frames(message) do
     [
-      message.identity |> String.Chars.to_string || "", #TODO CHANGE IN SERVICE LAYER
+      message.identity || "", #TODO CHANGE IN SERVICE LAYER
       message.protocol,
       message.type,
       message.rid,

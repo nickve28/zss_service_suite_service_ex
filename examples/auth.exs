@@ -5,7 +5,7 @@ defmodule Example.Auth do
     |> ZssService.get_instance
     |> ZssService.add_verb({"verify", Examples.SampleHandler, :verify})
 
-    0..3
+    0..1
     |> Enum.each(fn _ ->
       ZssService.run config
     end)

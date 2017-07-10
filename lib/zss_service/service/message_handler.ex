@@ -60,7 +60,8 @@ defmodule ZssService.Service.MessageHandler do
   end
 
   @doc "Catch any non matched message and dont crash the process"
-  def handle_msg(_, _, _) do
+  def handle_msg(msg, _, _) do
+    Logger.warn("Unmatched message: #{inspect msg}")
     :ok #match all in case, TODO: log
   end
 
