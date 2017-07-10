@@ -5,7 +5,7 @@ defmodule ZssService.Service do
 
   use GenServer
   alias ZssService.{Message, Configuration.Config}
-  alias ZssService.Service.{State, MessageHandler, Heartbeat}
+  alias ZssService.Service.{State, MessageHandler, Heartbeat, Responder}
   import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
@@ -58,19 +58,9 @@ defmodule ZssService.Service do
 
     register(socket, sid, identity)
     initiate_heartbeat(state)
-
-    this = self
-    spawn(fn ->
-      ZssService.Service.loop(socket, this)
-    end)
+    start_responder(state.supervisor, state.socket)
 
     {:ok, state}
-  end
-
-  def loop(socket, pid) do
-    msg = :chumak.recv_multipart(socket)
-    send(pid, msg)
-    loop(socket, pid)
   end
 
   def handle_info({:ok, msg}, %{config: config, socket: socket} = state) when is_list(msg) do
@@ -100,6 +90,17 @@ defmodule ZssService.Service do
     Task.async(fn ->
       Logger.debug(fn -> "Starting heartbeat in process #{inspect self()} with heartbeat #{state.config.heartbeat}" end)
       @service_supervisor.start_child(state.supervisor, {Heartbeat, :start_link, [state.socket, state.config, state.identity]})
+    end)
+  end
+
+  @doc """
+  Starts the process to get responses from the socket, and forward them to this process
+  """
+  defp start_responder(supervisor, socket) do
+    this = self()
+    Task.async(fn ->
+      Logger.debug(fn -> "Starting responder in process #{inspect self()}" end)
+      @service_supervisor.start_child(supervisor, {Responder, :start_link, [socket, this]})
     end)
   end
 

@@ -14,7 +14,7 @@ defmodule ZssService.Mixfile do
 
   #Ideally we'd rely on application inference supported since 1.4
   #But since we want to support <1.4, we rely on the older mechanism
-  @applications [:logger, :czmq, :uuid, :msgpax, :chumak]
+  @applications [:logger, :uuid, :msgpax, :chumak]
 
   def application do
     [
@@ -26,7 +26,6 @@ defmodule ZssService.Mixfile do
   defp deps do
     [
       {:chumak, "~> 1.2"},
-      {:czmq, github: "gar1t/erlang-czmq", compile: "LDFLAGS=-lrt ./configure; make"},
       {:msgpax, "~> 1.0"},
       {:uuid, "~> 1.1"},
       {:credo, "~> 0.3", only: [:dev, :test]}
