@@ -2,9 +2,9 @@
 
 [![Build Status](https://travis-ci.org/nickve28/zss_service_suite_service_ex.svg?branch=master)](https://travis-ci.org/nickve28/zss_service_suite_service_ex)
 
-**Warning: NOT PRODUCTION READY**
-
 ## Purpose
+
+Beware that this library is untested in a production environment. Use at your own risk.
 
 This is an Elixir implementation of a service worker for the [Micro Toolkit ZSS Broker](https://github.com/micro-toolkit/zmq-service-suite-broker-js). This is not an official repo.
 
@@ -27,7 +27,9 @@ This library is intended for use when you want to add an Elixir/Erlang based ser
 
 ## Installation
 
-T.B.D.
+In order to use this dependency, you'll need Elixir, Erlang and ZeroMQ installated on your system. Since the installations may vary per system, this readme will not cover those details.
+
+A minimum version of Elixir 1.3 is required to use this dependency.
 
 ## Creating a Service Worker
 
