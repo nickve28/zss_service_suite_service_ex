@@ -15,14 +15,10 @@ defmodule ZssService.Adapters.Socket do
 
   Returns: Socket
   """
-  def new_socket(%{linger: linger, type: type, identity: identity}) do
-    {:ok, socket} = :chumak.socket(:dealer, identity |> String.to_charlist)
+  def new_socket(%{type: type, identity: identity}) do
+    {:ok, socket} = :chumak.socket(type, identity |> String.to_charlist)
     socket
   end
-
-  @doc """
-  Links the socket to the C Port to get messages
-  """
 
   @doc """
   Set identity and connect socket to the server
@@ -45,12 +41,15 @@ defmodule ZssService.Adapters.Socket do
     :chumak.send_multipart(socket, message)
   end
 
+  @doc """
+  Receive a message send to the socket
+  """
   def receive(socket) do
     :chumak.recv_multipart(socket)
   end
 
   @doc """
-  Cleanup resources: Poller and socket
+  Cleans up the socket
   """
   def cleanup(socket) do
     :chumak.stop(socket)

@@ -38,6 +38,8 @@ defmodule ZssService.Message do
   A struct containing all logic on how the ZSS Frames should be constructed.
   """
 
+  alias ZssService.Address
+
   import Msgpax
 
   defstruct [
@@ -69,7 +71,7 @@ defmodule ZssService.Message do
   """
   def new(sid, verb, sversion \\ "*") do
     %ZssService.Message{
-      address: ZssService.Address.new(%{
+      address: Address.new(%{
         sid: sid,
         sversion: sversion,
         verb: verb
@@ -101,7 +103,7 @@ defmodule ZssService.Message do
   """
   def to_frames(message) do
     [
-      message.identity || "", #TODO CHANGE IN SERVICE LAYER
+      message.identity || "",
       message.protocol,
       message.type,
       message.rid,
@@ -144,7 +146,7 @@ defmodule ZssService.Message do
       protocol: protocol,
       type: type,
       rid: rid,
-      address: ZssService.Address.new(unpack!(encoded_address)),
+      address: Address.new(unpack!(encoded_address)),
       headers: unpack!(encoded_headers),
       status: status,
       payload: unpack!(encoded_payload)

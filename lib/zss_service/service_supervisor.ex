@@ -4,7 +4,7 @@ defmodule ZssService.ServiceSupervisor do
   require Logger
 
   @moduledoc """
-  A supervisor intended to supervise the Service Workers and their Heartbeat module.
+  A supervisor intended to supervise the Service Workers and their related modules.
   The Service worker should be added separately, or use the `ZssService` to handle this for you.
   """
 
@@ -33,6 +33,9 @@ defmodule ZssService.ServiceSupervisor do
     {:ok, pid} = Supervisor.start_child(sup, worker(module, args, [function: fun]))
   end
 
+  @doc """
+  Stops the supervisor
+  """
   def stop(pid, reason \\ :normal) do
     Supervisor.stop(pid, reason)
   end

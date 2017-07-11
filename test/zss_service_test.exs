@@ -5,6 +5,8 @@ defmodule ZssServiceTest do
   alias ZssService.Mocks.{Broker}
   alias ZssService.{Message}
 
+  doctest ZssService
+
   #Integration specs
   setup do
     {:ok, broker} = Broker.get_instance(%{address: "tcp://127.0.0.1:7776"})
