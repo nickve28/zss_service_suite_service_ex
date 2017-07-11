@@ -6,7 +6,7 @@ defmodule ZssService.Service.Heartbeat do
   The actual socket, it's extracted to a several module that will be supervised
   """
 
-  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter) || ZssService.Adapters.Socket
 
   alias ZssService.Message
   require Logger

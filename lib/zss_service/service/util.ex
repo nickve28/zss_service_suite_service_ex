@@ -4,7 +4,7 @@ defmodule ZssService.Service.Util do
   require Logger
   alias ZssService.Message
 
-  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter) || ZssService.Adapters.Socket
 
   @doc "Send request to the worker"
   def send_request(socket, message) do

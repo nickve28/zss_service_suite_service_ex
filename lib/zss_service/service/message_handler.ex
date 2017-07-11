@@ -9,7 +9,7 @@ defmodule ZssService.Service.MessageHandler do
   import ZssService.Service.Util, only: [send_reply: 2]
   require Logger
 
-  @service_supervisor Application.get_env(:zss_service, :service_supervisor)
+  @service_supervisor Application.get_env(:zss_service, :service_supervisor) || ZssService.ServiceSupervisor
 
   @success 200
   @no_content 204
