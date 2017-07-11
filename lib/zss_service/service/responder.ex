@@ -5,7 +5,7 @@ defmodule ZssService.Service.Responder do
   This module will get responses from the socket. The responses will be forwarded to the service pid
   """
 
-  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter) || ZssService.Adapters.Socket
 
   alias ZssService.Message
   require Logger

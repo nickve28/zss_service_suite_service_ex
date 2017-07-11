@@ -3,7 +3,7 @@ defmodule ZssService.Service.Timer do
   A module that contains a struct to keep track of the time passed between certain operations.
   """
 
-  @datetime Application.get_env(:zss_service, :datetime_module)
+  @datetime Application.get_env(:zss_service, :datetime_module) || DateTime
   @to_millis 1_000_000
   @doc """
   Starts the timer, and returns the start time

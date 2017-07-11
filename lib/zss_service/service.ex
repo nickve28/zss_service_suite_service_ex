@@ -9,8 +9,8 @@ defmodule ZssService.Service do
   import ZssService.Service.Util, only: [send_request: 2]
   require Logger
 
-  @socket_adapter Application.get_env(:zss_service, :socket_adapter)
-  @service_supervisor Application.get_env(:zss_service, :service_supervisor)
+  @socket_adapter Application.get_env(:zss_service, :socket_adapter) || ZssService.Adapters.Socket
+  @service_supervisor Application.get_env(:zss_service, :service_supervisor) || ZssService.ServiceSupervisor
 
   ### Public API
 

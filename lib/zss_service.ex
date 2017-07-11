@@ -18,7 +18,7 @@ defmodule ZssService do
       supervisor(ZssService.ServicesSupervisor, [])
     ]
 
-    opts = [strategy: :one_for_one, name: User.Supervisor]
+    opts = [strategy: :one_for_one, name: ZssService.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
