@@ -45,7 +45,7 @@ defmodule ZssService.Service do
     identity = sid
     |> get_identity()
 
-    opts = %{type: :dealer, linger: 0, identity: identity}
+    opts = %{type: :dealer, identity: identity}
     socket = @socket_adapter.new_socket(opts)
 
     state = %State{config: config, socket: socket, supervisor: supervisor, identity: identity}
