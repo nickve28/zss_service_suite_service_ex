@@ -51,7 +51,7 @@ defmodule ZssService.Service do
     state = %State{config: config, socket: socket, supervisor: supervisor, identity: identity}
 
     Logger.debug(fn -> "Assuming identity #{identity}" end)
-    @socket_adapter.connect(socket, identity, state.config.broker)
+    @socket_adapter.connect(socket, state.config.broker)
 
     register(socket, sid, identity)
     initiate_heartbeat(state)
@@ -84,7 +84,7 @@ defmodule ZssService.Service do
   @doc "Initiate the heartbeat process to send heartbeat in the specified interval"
   defp initiate_heartbeat(state) do
     # Run in background to be non-blocking and let the ServiceSupervisor handle supervision for us.
-    Task.async(fn ->
+    spawn(fn ->
       Logger.debug(fn -> "Starting heartbeat in process #{inspect self()} with heartbeat #{state.config.heartbeat}" end)
       @service_supervisor.start_child(state.supervisor, {Heartbeat, :start_link, [state.socket, state.config, state.identity]})
     end)
@@ -95,7 +95,7 @@ defmodule ZssService.Service do
   """
   defp start_responder(supervisor, socket) do
     this = self()
-    Task.async(fn ->
+    spawn(fn ->
       Logger.debug(fn -> "Starting responder in process #{inspect self()}" end)
       @service_supervisor.start_child(supervisor, {Responder, :start_link, [socket, this]})
     end)
