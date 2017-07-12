@@ -21,9 +21,9 @@ defmodule ZssService.Adapters.Socket do
   end
 
   @doc """
-  Set identity and connect socket to the server
+  Connect the socket to the specified server
   """
-  def connect(socket, identity, server) do
+  def connect(socket, server) do
     "tcp://" <> address_port = server
     [address, port] = String.split(address_port, ":")
     {:ok, _peer_pid} = :chumak.connect(

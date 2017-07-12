@@ -35,9 +35,7 @@ defmodule ZssService.Mocks.Adapters.Socket do
   #Simulate functions
   def new_socket(config), do: GenServer.call(__MODULE__, {:new_socket, [config]})
 
-  def link_to_poller(socket), do: GenServer.call(__MODULE__, {:link_to_poller, [socket]})
-
-  def connect(socket, identity, server), do: GenServer.call(__MODULE__, {:connect, [socket, identity, server]})
+  def connect(socket, server), do: GenServer.call(__MODULE__, {:connect, [socket, server]})
 
   def send(socket, msg), do: GenServer.call(__MODULE__, {:send, [socket, msg]})
 

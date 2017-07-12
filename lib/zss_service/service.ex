@@ -51,7 +51,7 @@ defmodule ZssService.Service do
     state = %State{config: config, socket: socket, supervisor: supervisor, identity: identity}
 
     Logger.debug(fn -> "Assuming identity #{identity}" end)
-    @socket_adapter.connect(socket, identity, state.config.broker)
+    @socket_adapter.connect(socket, state.config.broker)
 
     register(socket, sid, identity)
     initiate_heartbeat(state)

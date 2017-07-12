@@ -31,10 +31,8 @@ defmodule ZssService.ServiceTest do
     @tag :run
     test "should connect to the broker" do
       #Not sure how to improve this yet
-      Socket.stub(:connect, fn _socket, identity, broker ->
+      Socket.stub(:connect, fn _socket, broker ->
         assert broker === "tcp://127.0.0.1:7776"
-        identity = identity |> String.Chars.to_string
-        assert Regex.match?(~r/PING#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, identity) === true
         :ok
       end)
 
