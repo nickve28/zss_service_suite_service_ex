@@ -27,8 +27,8 @@ defmodule Examples.SampleHandler do
   end
 
   def ping_me_more(_payload, message) do
-    %{headers: %{"userId" => user_id}} = message
-    {:ok, [%{ping: "PONG", user_id: user_id}, %{ping: "PANG", user_id: user_id}], 202}
+    # %{headers: %{"userId" => user_id}} = message
+    {:ok, [%{ping: "PONG", user_id: "1"}, %{ping: "PANG", user_id: "1"}], 202}
   end
 end
 
