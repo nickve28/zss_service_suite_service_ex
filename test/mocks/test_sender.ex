@@ -10,7 +10,7 @@ defmodule ZssService.Mocks.TestSender do
   end
 
   def send_bad_request(_payload, message) do
-    error = Map.get(Application.get_env(:zss_service, :errors), "400")
+    error = Map.get(ZssService.ErrorCodes.errors, "400")
     send(self(), {:error, error, 400})
   end
 
