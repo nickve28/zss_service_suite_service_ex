@@ -28,6 +28,18 @@ defmodule ZssService.Configuration.ConfigTest do
     end
   end
 
+  describe "when adding a verb with a non existent handler" do
+    test "an error should be returned" do
+      config = "ping"
+      |> Config.new
+
+      handler = {ZssService.Mocks.TestSender, :non_existing}
+
+      assert {:error, "The function Elixir.ZssService.Mocks.TestSender => non_existing with arity 2 was not found"}
+        === Config.add_handler(config, "get", handler)
+    end
+  end
+
   describe "when adding a verb" do
     test "should make the verb uppercase" do
       config = "ping"

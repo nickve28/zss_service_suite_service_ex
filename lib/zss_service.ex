@@ -47,7 +47,7 @@ defmodule ZssService do
   ## Example
 
   iex> config = ZssService.get_instance(%{sid: "FOO"})
-  iex> %{handlers: handlers} = ZssService.add_verb(config, {"get", Foo, :bar})
+  iex> %{handlers: handlers} = ZssService.add_verb(config, {"get", ZssService.Mocks.TestSender, :send_me})
   iex> handler = Map.get(handlers, "GET")
   iex> is_function(handler)
   true
