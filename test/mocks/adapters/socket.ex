@@ -39,7 +39,7 @@ defmodule ZssService.Mocks.Adapters.Socket do
 
   def send(socket, msg), do: GenServer.call(__MODULE__, {:send, [socket, msg]})
 
-  def cleanup(socket, poller), do: GenServer.call(__MODULE__, {:cleanup, [socket, poller]})
+  def cleanup(socket), do: GenServer.call(__MODULE__, {:cleanup, [socket]})
 
   def handle_call({:stub, verb, response}, _from, %State{handlers: handlers} = state) do
     handlers = Map.put(handlers, verb, response)
